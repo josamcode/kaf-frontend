@@ -71,6 +71,8 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // repdeloy with new favicon
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header
