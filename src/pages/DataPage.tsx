@@ -119,7 +119,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   const handleWhatsApp = (phone: string) => {
     // Clean phone number (remove spaces, dashes, etc.)
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
-    window.open(`https://wa.me/${cleanPhone}`, "_blank");
+    window.open(`https://wa.me/+2${cleanPhone}`, "_blank");
   };
 
   const formatDate = (dateString?: string) => {

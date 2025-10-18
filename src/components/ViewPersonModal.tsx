@@ -135,7 +135,7 @@ const ViewPersonModal: React.FC<ViewPersonModalProps> = ({
 
   const handleWhatsApp = (phone: string) => {
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
-    window.open(`https://wa.me/${cleanPhone}`, "_blank");
+    window.open(`https://wa.me/+2${cleanPhone}`, "_blank");
   };
 
   return (
