@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   SlidersHorizontal,
   Plus,
@@ -14,12 +15,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  RefreshCw,
 } from "lucide-react";
 import { Person, FilterOptions } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
-import ViewPersonModal from "../components/ViewPersonModal";
 import {
   Button,
   IconButton,
@@ -40,11 +39,11 @@ interface DataPageProps {
 }
 
 const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
+  const navigate = useNavigate();
   const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Delete confirmation
@@ -124,8 +123,10 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   };
 
   const handleCall = (phone: string) => window.open(`tel:${phone}`, "_self");
+  const handleViewPerson = (personId: string) => navigate(`/persons/${personId}`);
+
   const handleWhatsApp = (phone: string) => {
-    const clean = phone.replace(/[\s\-\(\)]/g, "");
+    const clean = phone.replace(/[\\s\-()]/g, "");
     window.open(`https://wa.me/+2${clean}`, "_blank");
   };
 
@@ -322,7 +323,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                     <div className="flex items-start justify-between gap-2 mb-2.5">
                       <div
                         className="flex items-center gap-2.5 min-w-0 cursor-pointer"
-                        onClick={() => setViewingPerson(person)}
+                        onClick={() => handleViewPerson(person._id)}
                       >
                         <Avatar
                           name={person.name}
@@ -359,7 +360,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                           icon={<Eye size={15} />}
                           label="عرض"
                           size="sm"
-                          onClick={() => setViewingPerson(person)}
+                          onClick={() => handleViewPerson(person._id)}
                         />
                         {hasPermission("edit_data") &&
                           canAccessGender(person.gender) && (
@@ -464,7 +465,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                         <td className="px-4 py-3">
                           <div
                             className="flex items-center gap-2.5 cursor-pointer"
-                            onClick={() => setViewingPerson(person)}
+                            onClick={() => handleViewPerson(person._id)}
                           >
                             <Avatar
                               name={person.name}
@@ -547,7 +548,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               icon={<Eye size={15} />}
                               label="عرض"
                               size="xs"
-                              onClick={() => setViewingPerson(person)}
+                              onClick={() => handleViewPerson(person._id)}
                             />
                             <IconButton
                               icon={<Phone size={15} />}
@@ -624,15 +625,6 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
           </Button>
         </div>
       )}
-
-      {/* ===== View Modal ===== */}
-      <ViewPersonModal
-        isOpen={!!viewingPerson}
-        onClose={() => setViewingPerson(null)}
-        person={viewingPerson}
-        onPersonUpdate={loadPersons}
-        onPersonRefresh={(updatedPerson) => setViewingPerson(updatedPerson)}
-      />
 
       {/* ===== Delete Confirmation ===== */}
       <ConfirmDialog

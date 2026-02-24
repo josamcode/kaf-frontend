@@ -4,6 +4,7 @@ export interface User {
   role: "super_admin" | "admin";
   permissions: Permission[];
   genderAccess: "boys" | "girls" | "both";
+  allowedOrigins?: string[];
 }
 
 export type Permission =
@@ -62,6 +63,7 @@ export interface ApiResponse<T = any> {
   persons?: Person[];
   admins?: User[];
   stats?: Stats;
+  formOptions?: PersonFormOptions;
   pagination?: {
     current: number;
     pages: number;
@@ -95,11 +97,21 @@ export interface PersonForm {
   customFields?: Record<string, string>;
 }
 
+export interface PersonFormOptions {
+  college: string[];
+  university: string[];
+  residence: string[];
+  origin: string[];
+  customFieldKeys: string[];
+  customFieldValuesByKey: Record<string, string[]>;
+}
+
 export interface AdminForm {
   username: string;
   password: string;
   permissions: Permission[];
   genderAccess: "boys" | "girls" | "both";
+  allowedOrigins: string[];
 }
 
 export interface FilterOptions {

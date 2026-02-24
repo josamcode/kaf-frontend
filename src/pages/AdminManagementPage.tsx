@@ -10,10 +10,10 @@ import {
   X,
   Eye,
   EyeOff,
+  MapPin,
 } from "lucide-react";
 import { User, AdminForm, Permission } from "../types";
-import { authAPI } from "../services/api";
-import { useAuth } from "../contexts/AuthContext";
+import { authAPI, personsAPI } from "../services/api";
 import {
   Button,
   IconButton,
@@ -42,13 +42,15 @@ const AdminManagementPage: React.FC = () => {
     password: "",
     permissions: [],
     genderAccess: "both",
+    allowedOrigins: [],
   });
+  const [originInput, setOriginInput] = useState("");
+  const [originSuggestions, setOriginSuggestions] = useState<string[]>([]);
+  const [loadingOrigins, setLoadingOrigins] = useState(false);
 
   // Delete state
   const [deletingAdmin, setDeletingAdmin] = useState<User | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const { hasPermission } = useAuth();
 
   const sortAdminsAlphabetically = (admins: User[]): User[] => {
     return [...admins].sort((a, b) => {
@@ -92,6 +94,12 @@ const AdminManagementPage: React.FC = () => {
     manage_notes: "📝",
   };
 
+  const selectablePermissions = (
+    Object.keys(permissionLabels) as Permission[]
+  ).filter(
+    (permission) => permission !== "view_boys" && permission !== "view_girls",
+  );
+
   const genderAccessLabels: Record<string, string> = {
     boys: "أولاد فقط",
     girls: "بنات فقط",
@@ -120,11 +128,61 @@ const AdminManagementPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!showAddForm) return;
+
+    const loadOrigins = async () => {
+      try {
+        setLoadingOrigins(true);
+        const response = await personsAPI.getFormOptions();
+        if (response.success && response.formOptions) {
+          setOriginSuggestions(response.formOptions.origin || []);
+        } else {
+          setOriginSuggestions([]);
+        }
+      } catch {
+        setOriginSuggestions([]);
+      } finally {
+        setLoadingOrigins(false);
+      }
+    };
+
+    loadOrigins();
+  }, [showAddForm]);
+
+  useEffect(() => {
     if (successMessage) {
       const timer = setTimeout(() => setSuccessMessage(null), 4000);
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
+
+  const normalizeOrigin = (value: string) => value.trim().toLocaleLowerCase();
+
+  const addAllowedOrigin = (value: string) => {
+    const cleaned = value.trim();
+    if (!cleaned) return;
+
+    setFormData((prev) => {
+      const exists = prev.allowedOrigins.some(
+        (origin) => normalizeOrigin(origin) === normalizeOrigin(cleaned),
+      );
+      if (exists) return prev;
+      return {
+        ...prev,
+        allowedOrigins: [...prev.allowedOrigins, cleaned],
+      };
+    });
+    setOriginInput("");
+  };
+
+  const removeAllowedOrigin = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      allowedOrigins: prev.allowedOrigins.filter(
+        (origin) => normalizeOrigin(origin) !== normalizeOrigin(value),
+      ),
+    }));
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -156,6 +214,7 @@ const AdminManagementPage: React.FC = () => {
         const response = await authAPI.updateAdmin(editingAdmin.id, {
           permissions: formData.permissions,
           genderAccess: formData.genderAccess,
+          allowedOrigins: formData.allowedOrigins,
         });
         if (response.success) {
           setSuccessMessage("تم تحديث الخادم بنجاح");
@@ -208,7 +267,9 @@ const AdminManagementPage: React.FC = () => {
       password: "",
       permissions: admin.permissions,
       genderAccess: admin.genderAccess,
+      allowedOrigins: admin.allowedOrigins || [],
     });
+    setOriginInput("");
     setShowAddForm(true);
     setShowPassword(false);
   };
@@ -219,7 +280,9 @@ const AdminManagementPage: React.FC = () => {
       password: "",
       permissions: [],
       genderAccess: "both",
+      allowedOrigins: [],
     });
+    setOriginInput("");
     setEditingAdmin(null);
     setShowPassword(false);
   };
@@ -237,6 +300,12 @@ const AdminManagementPage: React.FC = () => {
 
   const getGenderVariant = (access: string): "info" | "danger" | "neutral" =>
     access === "boys" ? "info" : access === "girls" ? "danger" : "neutral";
+
+  const getOriginAccessText = (origins?: string[]) => {
+    if (!origins || origins.length === 0) return "All origins";
+    if (origins.length === 1) return origins[0];
+    return `${origins[0]} +${origins.length - 1}`;
+  };
 
   return (
     <div className="flex flex-col min-h-full">
@@ -390,17 +459,105 @@ const AdminManagementPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Origin Access */}
+          <div>
+            <SectionLabel>صلاحيات الوصول من البلاد</SectionLabel>
+            <div className="mt-2.5 space-y-2.5">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  name="originInput"
+                  value={originInput}
+                  onChange={(e) => setOriginInput(e.target.value)}
+                  placeholder="إضافة مصدر (مثال: Cairo)"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addAllowedOrigin(originInput);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => addAllowedOrigin(originInput)}
+                  className="shrink-0"
+                >
+                  إضافة
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {formData.allowedOrigins.length > 0 ? (
+                  formData.allowedOrigins.map((origin) => (
+                    <span
+                      key={origin}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50 border border-primary-100"
+                    >
+                      <Badge variant="primary" size="xs">
+                        {origin}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => removeAllowedOrigin(origin)}
+                        className="text-primary-500 hover:text-primary-700"
+                        aria-label={`إزالة ${origin}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[12px] text-surface-500 font-medium">
+                    تعني القائمة الفارغة السماح بالوصول من جميع البلاد.
+                  </span>
+                )}
+              </div>
+
+              {originSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {originSuggestions
+                    .filter(
+                      (origin) =>
+                        !formData.allowedOrigins.some(
+                          (selected) =>
+                            selected.toLocaleLowerCase() ===
+                            origin.toLocaleLowerCase(),
+                        ),
+                    )
+                    .slice(0, 12)
+                    .map((origin) => (
+                      <button
+                        key={origin}
+                        type="button"
+                        onClick={() => addAllowedOrigin(origin)}
+                        className="px-2 py-1 rounded-lg border border-surface-200 text-[12px] font-semibold text-surface-600 hover:bg-surface-50"
+                      >
+                        + {origin}
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              {loadingOrigins && (
+                <p className="text-[11px] text-surface-400">
+                  جاري تحميل البلاد...
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Permissions */}
           <div>
             <SectionLabel>الصلاحيات</SectionLabel>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5">
-              {(Object.entries(permissionLabels) as [Permission, string][]).map(
-                ([permission, label]) => {
-                  const isChecked = formData.permissions.includes(permission);
-                  return (
-                    <label
-                      key={permission}
-                      className={`
+              {selectablePermissions.map((permission) => {
+                const label = permissionLabels[permission];
+                const isChecked = formData.permissions.includes(permission);
+                return (
+                  <label
+                    key={permission}
+                    className={`
                         flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer
                         transition-all duration-200 active:scale-[0.98]
                         ${
@@ -409,33 +566,32 @@ const AdminManagementPage: React.FC = () => {
                             : "border-surface-200 hover:border-surface-300 hover:bg-surface-50"
                         }
                       `}
-                    >
-                      <Checkbox
-                        checked={isChecked}
-                        onChange={(e) =>
-                          handlePermissionChange(
-                            permission,
-                            (e.target as HTMLInputElement).checked,
-                          )
-                        }
-                        size="sm"
-                      />
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm shrink-0">
-                          {permissionIcons[permission]}
-                        </span>
-                        <span
-                          className={`text-[13px] font-semibold truncate ${
-                            isChecked ? "text-primary-700" : "text-surface-700"
-                          }`}
-                        >
-                          {label}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                },
-              )}
+                  >
+                    <Checkbox
+                      checked={isChecked}
+                      onChange={(e) =>
+                        handlePermissionChange(
+                          permission,
+                          (e.target as HTMLInputElement).checked,
+                        )
+                      }
+                      size="sm"
+                    />
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm shrink-0">
+                        {permissionIcons[permission]}
+                      </span>
+                      <span
+                        className={`text-[13px] font-semibold truncate ${
+                          isChecked ? "text-primary-700" : "text-surface-700"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </form>
@@ -509,6 +665,9 @@ const AdminManagementPage: React.FC = () => {
                             size="xs"
                           >
                             {genderAccessLabels[admin.genderAccess]}
+                          </Badge>
+                          <Badge variant="neutral" size="xs">
+                            {getOriginAccessText(admin.allowedOrigins)}
                           </Badge>
                         </div>
                       </div>
@@ -630,12 +789,18 @@ const AdminManagementPage: React.FC = () => {
 
                       {/* Access */}
                       <td className="px-4 py-3">
-                        <Badge
-                          variant={getGenderVariant(admin.genderAccess)}
-                          size="xs"
-                        >
-                          {genderAccessLabels[admin.genderAccess]}
-                        </Badge>
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge
+                            variant={getGenderVariant(admin.genderAccess)}
+                            size="xs"
+                          >
+                            {genderAccessLabels[admin.genderAccess]}
+                          </Badge>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-surface-500 font-medium">
+                            <MapPin size={12} />
+                            {getOriginAccessText(admin.allowedOrigins)}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Actions */}

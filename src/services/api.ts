@@ -7,6 +7,7 @@ import {
   Stats,
   LoginForm,
   PersonForm,
+  PersonFormOptions,
   AdminForm,
   FilterOptions,
 } from "../types";
@@ -102,6 +103,11 @@ export const personsAPI = {
 
   getPerson: async (id: string): Promise<ApiResponse> => {
     const response = await api.get(`/persons/${id}`);
+    return response.data;
+  },
+
+  getFormOptions: async (): Promise<ApiResponse<PersonFormOptions>> => {
+    const response = await api.get("/persons/form-options");
     return response.data;
   },
 

@@ -12,6 +12,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
+  initialized: boolean;
   error: string | null;
 }
 
@@ -19,6 +20,7 @@ type AuthAction =
   | { type: "AUTH_START" }
   | { type: "AUTH_SUCCESS"; payload: { user: User; token: string } }
   | { type: "AUTH_FAILURE"; payload: string }
+  | { type: "AUTH_INITIALIZED" }
   | { type: "LOGOUT" }
   | { type: "CLEAR_ERROR" };
 
@@ -26,6 +28,7 @@ const initialState: AuthState = {
   user: null,
   token: localStorage.getItem("token"),
   loading: false,
+  initialized: false,
   error: null,
 };
 
@@ -41,6 +44,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return {
         ...state,
         loading: false,
+        initialized: true,
         user: action.payload.user,
         token: action.payload.token,
         error: null,
@@ -49,13 +53,20 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return {
         ...state,
         loading: false,
+        initialized: true,
         user: null,
         token: null,
         error: action.payload,
       };
+    case "AUTH_INITIALIZED":
+      return {
+        ...state,
+        initialized: true,
+      };
     case "LOGOUT":
       return {
         ...state,
+        initialized: true,
         user: null,
         token: null,
         error: null,
@@ -113,11 +124,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
+            dispatch({ type: "AUTH_INITIALIZED" });
           }
         } catch (error) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
+          dispatch({ type: "AUTH_INITIALIZED" });
         }
+      } else {
+        dispatch({ type: "AUTH_INITIALIZED" });
       }
     };
 

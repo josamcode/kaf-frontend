@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { X, Plus, Save, AlertCircle } from "lucide-react";
-import { Person, PersonForm } from "../types";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { X, Plus, Save, AlertCircle, ChevronDown } from "lucide-react";
+import { Person, PersonForm, PersonFormOptions } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import { Modal, Button, Input, Select, IconButton, Badge } from "./ui";
@@ -12,88 +12,126 @@ interface PersonFormModalProps {
   onSuccess: () => void;
 }
 
+const DEFAULT_FORM_DATA: PersonForm = {
+  name: "",
+  gender: "boy",
+  birthDate: "",
+  college: "",
+  university: "",
+  residence: "",
+  origin: "",
+  year: 1,
+  phone: "",
+  customFields: {},
+};
+
+const EMPTY_FORM_OPTIONS: PersonFormOptions = {
+  college: [],
+  university: [],
+  residence: [],
+  origin: [],
+  customFieldKeys: [],
+  customFieldValuesByKey: {},
+};
+
 const PersonFormModal: React.FC<PersonFormModalProps> = ({
   isOpen,
   onClose,
   person,
   onSuccess,
 }) => {
-  const [formData, setFormData] = useState<PersonForm>({
-    name: "",
-    gender: "boy",
-    birthDate: "",
-    college: "",
-    university: "",
-    residence: "",
-    origin: "",
-    year: 1,
-    phone: "",
-    customFields: {},
-  });
+  const [formData, setFormData] = useState<PersonForm>(DEFAULT_FORM_DATA);
+  const [formOptions, setFormOptions] =
+    useState<PersonFormOptions>(EMPTY_FORM_OPTIONS);
 
+  // Custom field quick-add
   const [customFieldKey, setCustomFieldKey] = useState("");
   const [customFieldValue, setCustomFieldValue] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [loadingFormOptions, setLoadingFormOptions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { hasPermission } = useAuth();
 
   useEffect(() => {
-    if (person) {
-      setFormData({
-        name: person.name,
-        gender: person.gender,
-        birthDate: person.birthDate || "",
-        college: person.college || "",
-        university: person.university || "",
-        residence: person.residence || "",
-        origin: person.origin,
-        year: person.year,
-        phone: person.phone,
-        customFields: person.customFields || {},
-      });
-    } else {
-      resetForm();
-    }
-  }, [person]);
+    if (!isOpen) return;
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      gender: "boy",
-      birthDate: "",
-      college: "",
-      university: "",
-      residence: "",
-      origin: "",
-      year: 1,
-      phone: "",
-      customFields: {},
-    });
+    const nextForm: PersonForm = person
+      ? {
+          name: person.name,
+          gender: person.gender,
+          birthDate: person.birthDate || "",
+          college: person.college || "",
+          university: person.university || "",
+          residence: person.residence || "",
+          origin: person.origin,
+          year: person.year,
+          phone: person.phone,
+          customFields: person.customFields || {},
+        }
+      : { ...DEFAULT_FORM_DATA };
+
+    setFormData(nextForm);
     setCustomFieldKey("");
     setCustomFieldValue("");
     setError(null);
+
+    const loadFormOptions = async () => {
+      try {
+        setLoadingFormOptions(true);
+        const response = await personsAPI.getFormOptions();
+        const options =
+          response.success && response.formOptions
+            ? response.formOptions
+            : EMPTY_FORM_OPTIONS;
+        setFormOptions(options);
+      } catch {
+        setFormOptions(EMPTY_FORM_OPTIONS);
+      } finally {
+        setLoadingFormOptions(false);
+      }
+    };
+
+    loadFormOptions();
+  }, [isOpen, person]);
+
+  const resetForm = () => {
+    setFormData({ ...DEFAULT_FORM_DATA });
+    setCustomFieldKey("");
+    setCustomFieldValue("");
+    setError(null);
+  };
+
+  const updateField = (name: string, value: string | number) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "year") {
+      updateField(
+        name,
+        (Number.parseInt(value, 10) || 1) as PersonForm["year"],
+      );
+    } else {
+      updateField(name, value);
+    }
   };
 
   const handleAddCustomField = () => {
-    if (customFieldKey.trim() && customFieldValue.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        customFields: {
-          ...prev.customFields,
-          [customFieldKey]: customFieldValue,
-        },
-      }));
-      setCustomFieldKey("");
-      setCustomFieldValue("");
-    }
+    const key = customFieldKey.trim();
+    const value = customFieldValue.trim();
+    if (!key || !value) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      customFields: { ...prev.customFields, [key]: value },
+    }));
+    setCustomFieldKey("");
+    setCustomFieldValue("");
   };
 
   const handleRemoveCustomField = (key: string) => {
@@ -166,6 +204,9 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
     { value: "5", label: "السنة الخامسة" },
   ];
 
+  const customValueSuggestions =
+    formOptions.customFieldValuesByKey[customFieldKey] || [];
+
   return (
     <Modal
       isOpen={isOpen}
@@ -198,7 +239,6 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Error */}
         {error && (
           <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-xl animate-fade-in">
             <AlertCircle
@@ -218,10 +258,9 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
           </div>
         )}
 
-        {/* ===== Basic Info ===== */}
+        {/* ─── Basic Info ─── */}
         <FormSection label="البيانات الأساسية">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Name — full width */}
             <div className="sm:col-span-2">
               <Input
                 label="الاسم"
@@ -233,7 +272,6 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
               />
             </div>
 
-            {/* Gender */}
             <div>
               <label className="block text-sm font-semibold text-surface-700 mb-1.5">
                 النوع <span className="text-danger-500">*</span>
@@ -279,7 +317,6 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
               </div>
             </div>
 
-            {/* Birth Date */}
             <Input
               label="تاريخ الميلاد"
               name="birthDate"
@@ -290,7 +327,7 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
           </div>
         </FormSection>
 
-        {/* ===== Education ===== */}
+        {/* ─── Education ─── */}
         <FormSection label="التعليم">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
@@ -301,42 +338,46 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
               options={yearOptions}
               required
             />
-            <Input
+            <ComboInput
               label="الكلية"
-              name="college"
-              value={formData.college}
-              onChange={handleInputChange}
-              placeholder="اسم الكلية"
+              value={formData.college || ""}
+              onChange={(v) => updateField("college", v)}
+              suggestions={formOptions.college}
+              loading={loadingFormOptions}
+              placeholder="اكتب أو اختر الكلية"
             />
             <div className="sm:col-span-2">
-              <Input
+              <ComboInput
                 label="الجامعة"
-                name="university"
-                value={formData.university}
-                onChange={handleInputChange}
-                placeholder="اسم الجامعة"
+                value={formData.university || ""}
+                onChange={(v) => updateField("university", v)}
+                suggestions={formOptions.university}
+                loading={loadingFormOptions}
+                placeholder="اكتب أو اختر الجامعة"
               />
             </div>
           </div>
         </FormSection>
 
-        {/* ===== Location & Contact ===== */}
+        {/* ─── Location & Contact ─── */}
         <FormSection label="الموقع والتواصل">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
+            <ComboInput
               label="البلد الأصلية"
-              name="origin"
-              value={formData.origin}
-              onChange={handleInputChange}
+              value={formData.origin || ""}
+              onChange={(v) => updateField("origin", v)}
+              suggestions={formOptions.origin}
+              loading={loadingFormOptions}
+              placeholder="اكتب أو اختر البلد"
               required
-              placeholder="البلد الأصلية"
             />
-            <Input
+            <ComboInput
               label="مكان الإقامة"
-              name="residence"
-              value={formData.residence}
-              onChange={handleInputChange}
-              placeholder="مكان الإقامة"
+              value={formData.residence || ""}
+              onChange={(v) => updateField("residence", v)}
+              suggestions={formOptions.residence}
+              loading={loadingFormOptions}
+              placeholder="اكتب أو اختر مكان الإقامة"
             />
             <div className="sm:col-span-2">
               <Input
@@ -354,23 +395,30 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
           </div>
         </FormSection>
 
-        {/* ===== Custom Fields ===== */}
+        {/* ─── Custom Fields ─── */}
         <FormSection label="بيانات مخصصة">
-          {/* Add custom field row */}
-          <div className="flex flex-col sm:flex-row gap-2 mb-3">
-            <Input
+          {/* Quick-add row */}
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 mb-3">
+            <ComboInput
               value={customFieldKey}
-              onChange={(e) => setCustomFieldKey(e.target.value)}
+              onChange={setCustomFieldKey}
+              suggestions={formOptions.customFieldKeys}
+              loading={loadingFormOptions}
               placeholder="اسم الحقل"
               size="sm"
-              containerClassName="flex-1"
+              onSelect={(key) => {
+                setCustomFieldKey(key);
+                // Auto-clear value when key changes
+                setCustomFieldValue("");
+              }}
             />
-            <Input
+            <ComboInput
               value={customFieldValue}
-              onChange={(e) => setCustomFieldValue(e.target.value)}
+              onChange={setCustomFieldValue}
+              suggestions={customValueSuggestions}
               placeholder="القيمة"
               size="sm"
-              containerClassName="flex-1"
+              disabled={!customFieldKey.trim()}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -391,8 +439,8 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
             </Button>
           </div>
 
-          {/* Added fields */}
-          {customFieldEntries.length > 0 && (
+          {/* Existing custom fields */}
+          {customFieldEntries.length > 0 ? (
             <div className="space-y-1.5">
               {customFieldEntries.map(([key, value]) => (
                 <div
@@ -418,9 +466,7 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
                 </div>
               ))}
             </div>
-          )}
-
-          {customFieldEntries.length === 0 && (
+          ) : (
             <p className="text-[11px] text-surface-400 font-medium text-center py-2">
               لا توجد بيانات مخصصة — أضف حقول إضافية حسب الحاجة
             </p>
@@ -431,7 +477,182 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
   );
 };
 
-// ===== Form Section =====
+/* ═══════════════════════════════════════════════════════════════════════════
+   ComboInput — The key UX improvement.
+   A single input that acts as BOTH a text field and a dropdown.
+   - Type to filter suggestions
+   - Click dropdown arrow to see all options
+   - Pick a suggestion or type a new value — no mode switching needed
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+interface ComboInputProps {
+  label?: string;
+  value: string;
+  onChange: (value: string) => void;
+  onSelect?: (value: string) => void;
+  suggestions: string[];
+  loading?: boolean;
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+  size?: "sm" | "md";
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+}
+
+const ComboInput: React.FC<ComboInputProps> = ({
+  label,
+  value,
+  onChange,
+  onSelect,
+  suggestions,
+  loading,
+  placeholder,
+  required,
+  disabled,
+  size = "md",
+  onKeyDown,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Filter suggestions based on typed value
+  const filtered = value.trim()
+    ? suggestions.filter((s) =>
+        s.toLocaleLowerCase().includes(value.trim().toLocaleLowerCase()),
+      )
+    : suggestions;
+
+  const showDropdown = open && filtered.length > 0 && !disabled;
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (val: string) => {
+    onChange(val);
+    onSelect?.(val);
+    setOpen(false);
+    inputRef.current?.focus();
+  };
+
+  const sizeClasses =
+    size === "sm" ? "h-9 text-[13px] px-3" : "h-11 text-sm px-3.5";
+
+  return (
+    <div className="space-y-1.5" ref={wrapperRef}>
+      {label && (
+        <label className="block text-sm font-semibold text-surface-700">
+          {label}
+          {required && <span className="text-danger-500 mr-1">*</span>}
+        </label>
+      )}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            setFocused(true);
+            setOpen(true);
+          }}
+          onBlur={() => setFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+            onKeyDown?.(e);
+          }}
+          placeholder={loading ? "جارٍ التحميل..." : placeholder}
+          required={required}
+          disabled={disabled}
+          className={`
+            w-full rounded-xl border border-surface-200 bg-white
+            placeholder:text-surface-400 text-surface-800 font-medium
+            focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400
+            disabled:opacity-50 disabled:cursor-not-allowed
+            transition-all duration-200 ${sizeClasses}
+            ${suggestions.length > 0 ? "pl-9" : ""}
+          `}
+        />
+        {/* Dropdown toggle button — only shown when suggestions exist */}
+        {suggestions.length > 0 && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => {
+              setOpen((prev) => !prev);
+              inputRef.current?.focus();
+            }}
+            disabled={disabled}
+            className={`
+              absolute left-2 top-1/2 -translate-y-1/2 p-1 rounded-lg
+              text-surface-400 hover:text-surface-600 hover:bg-surface-100
+              transition-all duration-200 disabled:opacity-50
+              ${open ? "rotate-180" : ""}
+            `}
+          >
+            <ChevronDown size={15} />
+          </button>
+        )}
+
+        {/* Dropdown list */}
+        {showDropdown && (
+          <div
+            className="
+              absolute z-50 top-full mt-1 w-full
+              bg-white border border-surface-200 rounded-xl shadow-lg
+              max-h-44 overflow-y-auto overscroll-contain
+              animate-fade-in
+            "
+          >
+            {filtered.map((suggestion) => {
+              const isSelected =
+                suggestion.toLocaleLowerCase() === value.toLocaleLowerCase();
+              return (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // prevent blur
+                    handleSelect(suggestion);
+                  }}
+                  className={`
+                    w-full text-right px-3 py-2 text-[13px] font-medium
+                    transition-colors duration-100
+                    ${
+                      isSelected
+                        ? "bg-primary-50 text-primary-700"
+                        : "text-surface-700 hover:bg-surface-50"
+                    }
+                    first:rounded-t-xl last:rounded-b-xl
+                  `}
+                >
+                  {suggestion}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ─── Form Section ─── */
 const FormSection: React.FC<{
   label: string;
   children: React.ReactNode;

@@ -1,9 +1,11 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import AppLayout from "./components/AppLayout";
@@ -11,24 +13,51 @@ import LoginPage from "./pages/LoginPage";
 import DataPage from "./pages/DataPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import AdminManagementPage from "./pages/AdminManagementPage";
+import PersonDetailsPage from "./pages/PersonDetailsPage";
 import PersonFormModal from "./components/PersonFormModal";
-import { ToastContainer, useToast } from "./components/ui";
+import { Spinner, ToastContainer, useToast } from "./components/ui";
 
-const AppContent: React.FC = () => {
-  const { state } = useAuth();
-  const [currentPage, setCurrentPage] = useState("data");
+const ROUTE_TO_PAGE: Record<string, string> = {
+  "/data": "data",
+  "/analysis": "analysis",
+  "/admins": "admins",
+};
+
+const PAGE_TO_ROUTE: Record<string, string> = {
+  data: "/data",
+  analysis: "/analysis",
+  admins: "/admins",
+};
+
+const AuthInitializingScreen: React.FC = () => (
+  <div className="min-h-screen flex items-center justify-center bg-surface-50">
+    <Spinner size="lg" />
+  </div>
+);
+
+const ProtectedLayout: React.FC = () => {
+  const { state, hasPermission } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [showPersonForm, setShowPersonForm] = useState(false);
   const [editingPerson, setEditingPerson] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const toast = useToast();
 
-  // Not logged in — show login
-  if (!state.user || !state.token) {
-    return <LoginPage />;
+  if (!state.initialized) {
+    return <AuthInitializingScreen />;
   }
 
+  if (!state.user || !state.token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const currentPage = ROUTE_TO_PAGE[location.pathname] || "data";
+
   const handleNavigate = (page: string) => {
-    setCurrentPage(page);
+    const nextRoute = PAGE_TO_ROUTE[page] || "/data";
+    navigate(nextRoute);
   };
 
   const handleAddPerson = () => {
@@ -46,41 +75,40 @@ const AppContent: React.FC = () => {
     setShowPersonForm(false);
     setEditingPerson(null);
     setRefreshKey((prev) => prev + 1);
-    toast.success(wasEditing ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
-  };
-
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case "data":
-        return (
-          <DataPage
-            key={refreshKey}
-            onAddPerson={handleAddPerson}
-            onEditPerson={handleEditPerson}
-          />
-        );
-      case "analysis":
-        return <AnalysisPage key={refreshKey} />;
-      case "admins":
-        return <AdminManagementPage />;
-      default:
-        return (
-          <DataPage
-            key={refreshKey}
-            onAddPerson={handleAddPerson}
-            onEditPerson={handleEditPerson}
-          />
-        );
-    }
+    toast.success(wasEditing ? "Saved successfully" : "Added successfully");
   };
 
   return (
     <>
       <AppLayout currentPage={currentPage} onNavigate={handleNavigate}>
-        {renderCurrentPage()}
+        <Routes>
+          <Route
+            path="/data"
+            element={
+              <DataPage
+                key={refreshKey}
+                onAddPerson={handleAddPerson}
+                onEditPerson={handleEditPerson}
+              />
+            }
+          />
+          <Route path="/analysis" element={<AnalysisPage key={refreshKey} />} />
+          <Route
+            path="/admins"
+            element={
+              hasPermission("manage_admins") ? (
+                <AdminManagementPage />
+              ) : (
+                <Navigate to="/data" replace />
+              )
+            }
+          />
+          <Route path="/persons/:id" element={<PersonDetailsPage />} />
+          <Route path="/" element={<Navigate to="/data" replace />} />
+          <Route path="*" element={<Navigate to="/data" replace />} />
+        </Routes>
       </AppLayout>
 
-      {/* Person form modal */}
       <PersonFormModal
         isOpen={showPersonForm}
         onClose={() => {
@@ -91,17 +119,37 @@ const AppContent: React.FC = () => {
         onSuccess={handlePersonFormSuccess}
       />
 
-      {/* Global toast notifications */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </>
   );
 };
 
+const LoginRoute: React.FC = () => {
+  const { state } = useAuth();
+
+  if (!state.initialized) {
+    return <AuthInitializingScreen />;
+  }
+
+  if (state.user && state.token) {
+    return <Navigate to="/data" replace />;
+  }
+
+  return <LoginPage />;
+};
+
+const AppRoutes: React.FC = () => (
+  <Routes>
+    <Route path="/login" element={<LoginRoute />} />
+    <Route path="/*" element={<ProtectedLayout />} />
+  </Routes>
+);
+
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppContent />
+        <AppRoutes />
       </Router>
     </AuthProvider>
   );
