@@ -357,7 +357,9 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               {getGenderText(person.gender)}
                             </Badge>
                             <Badge variant="primary" size="xs">
-                              سنة {formatYearLabel(person.year)}
+                              {person.year === "graduated"
+                                ? formatYearLabel(person.year)
+                                : `سنة ${formatYearLabel(person.year)}`}
                             </Badge>
                           </div>
                         </div>
@@ -513,7 +515,9 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
 
                         {/* Year */}
                         <td className="px-4 py-3 text-[13px] text-surface-700 font-semibold">
-                          سنة {formatYearLabel(person.year)}
+                          {person.year === "graduated"
+                            ? formatYearLabel(person.year)
+                            : `سنة ${formatYearLabel(person.year)}`}
                         </td>
 
                         {/* College */}

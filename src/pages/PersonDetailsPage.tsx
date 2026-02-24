@@ -304,7 +304,9 @@ const PersonDetailsPage: React.FC = () => {
                           {genderText}
                         </Badge>
                         <Badge variant="primary" size="xs">
-                          {yearText}
+                          {person.year === "graduated"
+                            ? formatYearLabel(person.year)
+                            : `سنة ${formatYearLabel(person.year)}`}
                         </Badge>
                       </div>
                     </div>
