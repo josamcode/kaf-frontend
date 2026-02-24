@@ -466,7 +466,7 @@ const AdminManagementPage: React.FC = () => {
               <div>
                 <SectionLabel>صلاحيات الوصول من البلاد</SectionLabel>
                 <p className="text-[12px] text-surface-500 font-medium mt-1">
-                  اتركها فارغة للسماح بالوصول من جميع البلاد.
+                  اتركها فارغة للسماح بالوصول الى جميع البلاد.
                 </p>
               </div>
 
