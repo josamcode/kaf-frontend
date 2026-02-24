@@ -240,14 +240,6 @@ const AnalysisPage: React.FC = () => {
                           <span className="text-[13px] font-extrabold text-surface-900 truncate">
                             {d._id}
                           </span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Badge variant="neutral" size="xs">
-                              {d.uniqueValuesCount || 0} قيم
-                            </Badge>
-                            <Badge variant="neutral" size="xs">
-                              {d.totalCount || 0} إدخال
-                            </Badge>
-                          </div>
                         </div>
 
                         {Array.isArray(d.topValues) &&
