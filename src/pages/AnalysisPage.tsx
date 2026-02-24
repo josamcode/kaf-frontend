@@ -57,7 +57,7 @@ const AnalysisPage: React.FC = () => {
   }, [genderFilter]);
 
   const formatYearLabel = (year: Stats["byYear"][number]["_id"]) =>
-    year === "graduated" ? "\u0645\u062a\u062e\u0631\u062c" : `سنة ${year}`;
+    year === "graduated" ? "\u062e\u0631\u064a\u062c" : `سنة ${year}`;
 
   const yearChartData =
     stats?.byYear.map((item) => ({

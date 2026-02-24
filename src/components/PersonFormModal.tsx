@@ -206,7 +206,7 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
     { value: "3", label: "السنة الثالثة" },
     { value: "4", label: "السنة الرابعة" },
     { value: "5", label: "السنة الخامسة" },
-    { value: "graduated", label: "\u0645\u062a\u062e\u0631\u062c" },
+    { value: "graduated", label: "\u062e\u0631\u064a\u062c" },
   ];
 
   const customValueSuggestions =
