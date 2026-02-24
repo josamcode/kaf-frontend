@@ -158,4 +158,5 @@ export interface FilterOptions {
   search?: string;
   page?: number;
   limit?: number;
+  noLimit?: boolean;
 }

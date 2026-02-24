@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   SlidersHorizontal,
   Plus,
@@ -13,8 +19,10 @@ import {
   GraduationCap,
   Eye,
   X,
+  ChevronDown,
+  Check,
 } from "lucide-react";
-import { Person, FilterOptions } from "../types";
+import { Person, FilterOptions, PersonFormOptions } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -22,7 +30,6 @@ import {
   IconButton,
   SearchInput,
   Select,
-  Input,
   Badge,
   Card,
   EmptyState,
@@ -36,27 +43,108 @@ interface DataPageProps {
   onEditPerson: (person: Person) => void;
 }
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const EMPTY_FILTER_OPTIONS: Pick<PersonFormOptions, "origin" | "college"> = {
+  origin: [],
+  college: [],
+};
+
+const parseYearParam = (
+  value: string | null,
+): FilterOptions["year"] | undefined => {
+  if (!value) return undefined;
+  if (value === "graduated") return "graduated";
+
+  const parsed = Number.parseInt(value, 10);
+  if ([1, 2, 3, 4, 5].includes(parsed)) {
+    return parsed as FilterOptions["year"];
+  }
+
+  return undefined;
+};
+
+const parseFiltersFromParams = (params: URLSearchParams): FilterOptions => {
+  const gender = params.get("gender");
+  const origin = params.get("origin")?.trim() || undefined;
+  const college = params.get("college")?.trim() || undefined;
+  const search = params.get("search")?.trim() || undefined;
+  const year = parseYearParam(params.get("year"));
+
+  const pageRaw = Number.parseInt(params.get("page") || "", 10);
+  const page =
+    Number.isInteger(pageRaw) && pageRaw > 0 ? pageRaw : DEFAULT_PAGE;
+
+  return {
+    gender: gender === "boy" || gender === "girl" ? gender : undefined,
+    year,
+    origin,
+    college,
+    search,
+    page,
+    limit: DEFAULT_LIMIT,
+  };
+};
+
+const areFiltersEqual = (a: FilterOptions, b: FilterOptions) =>
+  a.gender === b.gender &&
+  a.year === b.year &&
+  a.origin === b.origin &&
+  a.college === b.college &&
+  a.search === b.search &&
+  (a.page || DEFAULT_PAGE) === (b.page || DEFAULT_PAGE);
+
+const buildParamsFromFilters = (filters: FilterOptions): URLSearchParams => {
+  const params = new URLSearchParams();
+  const hasQueryFilters = Boolean(
+    filters.search ||
+    filters.gender ||
+    filters.year !== undefined ||
+    filters.origin ||
+    filters.college,
+  );
+
+  if (filters.search) params.set("search", filters.search);
+  if (filters.gender) params.set("gender", filters.gender);
+  if (filters.year !== undefined) params.set("year", String(filters.year));
+  if (filters.origin) params.set("origin", filters.origin);
+  if (filters.college) params.set("college", filters.college);
+
+  const currentPage = filters.page || DEFAULT_PAGE;
+  if (!hasQueryFilters && currentPage > 1) {
+    params.set("page", String(currentPage));
+  }
+
+  return params;
+};
+
 const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialFilters = useMemo(
+    () => parseFiltersFromParams(searchParams),
+    [searchParams],
+  );
+
   const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialFilters.search || "");
 
   // Delete confirmation
   const [deletingPerson, setDeletingPerson] = useState<Person | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const [filters, setFilters] = useState<FilterOptions>({
-    page: 1,
-    limit: 10,
-  });
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [pagination, setPagination] = useState({
     current: 1,
     pages: 1,
     total: 0,
   });
+  const [filterOptions, setFilterOptions] = useState(EMPTY_FILTER_OPTIONS);
 
   const { hasPermission, canAccessGender } = useAuth();
 
@@ -78,16 +166,73 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     });
   };
 
+  const hasQueryFilters = Boolean(
+    filters.search ||
+    filters.gender ||
+    filters.year !== undefined ||
+    filters.origin ||
+    filters.college,
+  );
+
+  const requestFilters = useMemo<FilterOptions>(
+    () => ({
+      ...filters,
+      page: hasQueryFilters ? 1 : filters.page || DEFAULT_PAGE,
+      limit: hasQueryFilters ? undefined : DEFAULT_LIMIT,
+      noLimit: hasQueryFilters || undefined,
+    }),
+    [filters, hasQueryFilters],
+  );
+
+  useEffect(() => {
+    const parsed = parseFiltersFromParams(searchParams);
+    setFilters((prev) => (areFiltersEqual(prev, parsed) ? prev : parsed));
+    setSearchTerm(parsed.search || "");
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = buildParamsFromFilters(filters);
+    const nextQuery = nextParams.toString();
+    const currentQuery = location.search.startsWith("?")
+      ? location.search.slice(1)
+      : location.search;
+
+    if (nextQuery !== currentQuery) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [filters, location.search, setSearchParams]);
+
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const response = await personsAPI.getFormOptions();
+        if (response.success && response.formOptions) {
+          setFilterOptions({
+            origin: response.formOptions.origin || [],
+            college: response.formOptions.college || [],
+          });
+        } else {
+          setFilterOptions(EMPTY_FILTER_OPTIONS);
+        }
+      } catch {
+        setFilterOptions(EMPTY_FILTER_OPTIONS);
+      }
+    };
+
+    loadFilterOptions();
+  }, []);
+
   const loadPersons = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await personsAPI.getPersons(filters);
+      const response = await personsAPI.getPersons(requestFilters);
 
       if (response.success && response.persons) {
         const sortedPersons = sortPersonsAlphabetically(response.persons);
-        const currentPage = response.pagination?.current || filters.page || 1;
+        const currentPage =
+          response.pagination?.current || filters.page || DEFAULT_PAGE;
         const totalPages = Math.max(response.pagination?.pages || 1, 1);
         const totalPersons = response.pagination?.total ?? sortedPersons.length;
 
@@ -97,7 +242,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
           total: totalPersons,
         });
 
-        if (currentPage > totalPages) {
+        if (!hasQueryFilters && currentPage > totalPages) {
           setPersons([]);
           setFilters((prev) => ({ ...prev, page: totalPages }));
           return;
@@ -112,7 +257,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters.page, hasQueryFilters, requestFilters]);
 
   useEffect(() => {
     loadPersons();
@@ -224,6 +369,42 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     { value: "graduated", label: "خريج" },
   ];
 
+  const buildFilterSelectOptions = useCallback(
+    (values: string[], selectedValue?: string): SmartSelectOption[] => {
+      const uniqueValues = Array.from(
+        new Set(values.map((item) => item.trim())),
+      )
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, "ar", { sensitivity: "base" }));
+
+      if (
+        selectedValue &&
+        !uniqueValues.some(
+          (option) =>
+            option.toLocaleLowerCase() === selectedValue.toLocaleLowerCase(),
+        )
+      ) {
+        uniqueValues.unshift(selectedValue);
+      }
+
+      return [
+        { value: "", label: "\u0627\u0644\u0643\u0644" },
+        ...uniqueValues.map((value) => ({ value, label: value })),
+      ];
+    },
+    [],
+  );
+
+  const originOptions = useMemo(
+    () => buildFilterSelectOptions(filterOptions.origin, filters.origin),
+    [buildFilterSelectOptions, filterOptions.origin, filters.origin],
+  );
+
+  const collegeOptions = useMemo(
+    () => buildFilterSelectOptions(filterOptions.college, filters.college),
+    [buildFilterSelectOptions, filterOptions.college, filters.college],
+  );
+
   return (
     <div className="flex flex-col min-h-full">
       {/* ===== Page Header ===== */}
@@ -308,32 +489,26 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 options={yearOptions}
                 size="sm"
               />
-
-              <Input
+              <SmartSelect
                 label="البلد"
-                placeholder="بحث..."
                 value={filters.origin || ""}
-                onChange={(e) =>
-                  handleFilterChange("origin", e.target.value || undefined)
-                }
-                size="sm"
+                options={originOptions}
+                onChange={(value) => handleFilterChange("origin", value)}
+                placeholder="اختر"
               />
-
-              <Input
+              <SmartSelect
                 label="الكلية"
-                placeholder="بحث..."
                 value={filters.college || ""}
-                onChange={(e) =>
-                  handleFilterChange("college", e.target.value || undefined)
-                }
-                size="sm"
+                options={collegeOptions}
+                onChange={(value) => handleFilterChange("college", value)}
+                placeholder="اختر"
               />
             </div>
 
             {activeFiltersCount > 0 && (
               <button
                 onClick={() => {
-                  setFilters({ page: 1, limit: 10 });
+                  setFilters({ page: DEFAULT_PAGE, limit: DEFAULT_LIMIT });
                   setSearchTerm("");
                 }}
                 className="mt-3 text-xs font-bold text-danger-600 hover:text-danger-700 flex items-center gap-1 transition-colors"
@@ -689,7 +864,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
       </div>
 
       {/* ===== Pagination ===== */}
-      {pagination.total > 0 && (
+      {!hasQueryFilters && pagination.total > 0 && (
         <div className="flex items-center justify-center gap-2 mt-4 lg:mt-5 pb-2 flex-wrap">
           <span className="px-4 py-2 bg-surface-100 rounded-xl text-xs font-bold text-surface-700 min-w-[5rem] text-center">
             {pagination.current} / {pagination.pages}
@@ -746,5 +921,106 @@ const InfoRow: React.FC<{
     <span className="truncate">{children}</span>
   </div>
 );
+
+interface SmartSelectOption {
+  value: string;
+  label: string;
+}
+
+interface SmartSelectProps {
+  label: string;
+  value: string;
+  options: SmartSelectOption[];
+  placeholder?: string;
+  onChange: (value: string | undefined) => void;
+}
+
+const SmartSelect: React.FC<SmartSelectProps> = ({
+  label,
+  value,
+  options,
+  placeholder = "Select",
+  onChange,
+}) => {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find((option) => option.value === value);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  return (
+    <div className="space-y-1.5" ref={wrapperRef}>
+      <label className="block text-sm font-semibold text-surface-700">
+        {label}
+      </label>
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className={`
+            w-full h-9 px-3 rounded-xl border border-surface-300 bg-white
+            flex items-center justify-between gap-2
+            hover:border-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/12 focus:border-primary-500
+            transition-all duration-200
+          `}
+        >
+          <span
+            className={`truncate text-sm font-medium ${
+              selectedOption ? "text-surface-900" : "text-surface-400"
+            }`}
+          >
+            {selectedOption?.label || placeholder}
+          </span>
+          <ChevronDown
+            size={16}
+            className={`text-surface-400 shrink-0 transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {open && (
+          <div className="absolute z-30 top-full mt-1 w-full bg-white border border-surface-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+            {options.map((option) => {
+              const isSelected = option.value === value;
+              return (
+                <button
+                  key={option.value || "__all"}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    onChange(option.value || undefined);
+                    setOpen(false);
+                  }}
+                  className={`w-full px-3 py-2.5 text-right text-sm font-medium flex items-center justify-between gap-2 transition-colors ${
+                    isSelected
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-surface-700 hover:bg-surface-50"
+                  }`}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {isSelected && <Check size={14} className="shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default DataPage;

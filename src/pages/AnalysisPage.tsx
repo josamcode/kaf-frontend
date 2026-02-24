@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -23,7 +24,7 @@ import {
   KeySquare,
   Shield,
 } from "lucide-react";
-import { Stats } from "../types";
+import { Stats, StudyYear } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import { Select, Card, EmptyState, Badge } from "../components/ui";
@@ -34,12 +35,25 @@ const maxBy = (arr: Array<{ count: number }>) =>
   arr.length ? Math.max(...arr.map((x) => x.count || 0)) : 0;
 
 const AnalysisPage: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [genderFilter, setGenderFilter] = useState<string>("");
 
   const { canAccessGender } = useAuth();
+
+  const navigateToDataWithFilter = (filters: {
+    origin?: string;
+    college?: string;
+    year?: StudyYear;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters.origin) params.set("origin", filters.origin);
+    if (filters.college) params.set("college", filters.college);
+    if (filters.year !== undefined) params.set("year", String(filters.year));
+    navigate(`/data?${params.toString()}`);
+  };
 
   const loadStats = async () => {
     try {
@@ -171,22 +185,6 @@ const AnalysisPage: React.FC = () => {
               value={personsWithNotes}
               hint={`${pctPersonsWithNotes}% من الإجمالي`}
             />
-            <MiniStat
-              label="متوسط/مخدوم"
-              value={Number.isFinite(avgNotesPerPerson) ? avgNotesPerPerson : 0}
-              isFloat
-              hint="على كل المخدومين"
-            />
-            <MiniStat
-              label="متوسط/مخدوم عليه ملاحظات"
-              value={
-                Number.isFinite(avgNotesPerNotedPerson)
-                  ? avgNotesPerNotedPerson
-                  : 0
-              }
-              isFloat
-              hint="على من لديهم ملاحظات"
-            />
           </div>
         </div>
       </Card>
@@ -289,6 +287,7 @@ const AnalysisPage: React.FC = () => {
     items,
     topN = 5,
     accent = "primary",
+    onItemClick,
   }: {
     title: string;
     subtitle: string;
@@ -296,6 +295,7 @@ const AnalysisPage: React.FC = () => {
     items: Array<{ _id: any; count: number }>;
     topN?: number;
     accent?: "primary" | "indigo" | "emerald" | "amber" | "surface";
+    onItemClick?: (value: string) => void;
   }) => {
     const sliced = (items || []).slice(0, topN);
     const maxCount = maxBy(items || []);
@@ -361,10 +361,19 @@ const AnalysisPage: React.FC = () => {
               {sliced.map((it, index) => {
                 const percentage =
                   maxCount > 0 ? (it.count / maxCount) * 100 : 0;
+                const rawValue = String(it._id ?? "").trim();
+                const isClickable = Boolean(onItemClick && rawValue);
                 return (
                   <div
                     key={`${it._id}-${index}`}
-                    className="flex items-center gap-2.5"
+                    className={`flex items-center gap-2.5 ${
+                      isClickable ? "cursor-pointer" : ""
+                    }`}
+                    onClick={
+                      isClickable && onItemClick
+                        ? () => onItemClick(rawValue)
+                        : undefined
+                    }
                   >
                     <div
                       className={`
@@ -732,6 +741,7 @@ const AnalysisPage: React.FC = () => {
               items={stats.topOrigins || []}
               topN={5}
               accent="primary"
+              onItemClick={(origin) => navigateToDataWithFilter({ origin })}
             />
 
             {/* Year Details */}
@@ -761,7 +771,13 @@ const AnalysisPage: React.FC = () => {
                         : 0;
 
                     return (
-                      <div key={index} className="flex items-center gap-2.5">
+                      <div
+                        key={index}
+                        className="flex items-center gap-2.5 cursor-pointer"
+                        onClick={() =>
+                          navigateToDataWithFilter({ year: year._id })
+                        }
+                      >
                         <div className="w-6 h-6 bg-amber-100 text-amber-700 rounded-md flex items-center justify-center shrink-0">
                           <GraduationCap size={12} />
                         </div>
@@ -803,6 +819,7 @@ const AnalysisPage: React.FC = () => {
               items={(stats.topColleges as any) || []}
               topN={5}
               accent="amber"
+              onItemClick={(college) => navigateToDataWithFilter({ college })}
             />
             <TopSimpleList
               title="أكثر الجامعات"
@@ -811,6 +828,7 @@ const AnalysisPage: React.FC = () => {
               items={(stats.topUniversities as any) || []}
               topN={5}
               accent="indigo"
+              
             />
           </div>
 
