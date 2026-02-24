@@ -46,11 +46,13 @@ const AnalysisPage: React.FC = () => {
   const navigateToDataWithFilter = (filters: {
     origin?: string;
     college?: string;
+    university?: string;
     year?: StudyYear;
   }) => {
     const params = new URLSearchParams();
     if (filters.origin) params.set("origin", filters.origin);
     if (filters.college) params.set("college", filters.college);
+    if (filters.university) params.set("university", filters.university);
     if (filters.year !== undefined) params.set("year", String(filters.year));
     navigate(`/data?${params.toString()}`);
   };
@@ -828,7 +830,9 @@ const AnalysisPage: React.FC = () => {
               items={(stats.topUniversities as any) || []}
               topN={5}
               accent="indigo"
-              
+              onItemClick={(university) =>
+                navigateToDataWithFilter({ university })
+              }
             />
           </div>
 

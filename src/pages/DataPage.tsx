@@ -45,9 +45,13 @@ interface DataPageProps {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
-const EMPTY_FILTER_OPTIONS: Pick<PersonFormOptions, "origin" | "college"> = {
+const EMPTY_FILTER_OPTIONS: Pick<
+  PersonFormOptions,
+  "origin" | "college" | "university"
+> = {
   origin: [],
   college: [],
+  university: [],
 };
 
 const parseYearParam = (
@@ -68,6 +72,7 @@ const parseFiltersFromParams = (params: URLSearchParams): FilterOptions => {
   const gender = params.get("gender");
   const origin = params.get("origin")?.trim() || undefined;
   const college = params.get("college")?.trim() || undefined;
+  const university = params.get("university")?.trim() || undefined;
   const search = params.get("search")?.trim() || undefined;
   const year = parseYearParam(params.get("year"));
 
@@ -80,6 +85,7 @@ const parseFiltersFromParams = (params: URLSearchParams): FilterOptions => {
     year,
     origin,
     college,
+    university,
     search,
     page,
     limit: DEFAULT_LIMIT,
@@ -91,6 +97,7 @@ const areFiltersEqual = (a: FilterOptions, b: FilterOptions) =>
   a.year === b.year &&
   a.origin === b.origin &&
   a.college === b.college &&
+  a.university === b.university &&
   a.search === b.search &&
   (a.page || DEFAULT_PAGE) === (b.page || DEFAULT_PAGE);
 
@@ -101,7 +108,8 @@ const buildParamsFromFilters = (filters: FilterOptions): URLSearchParams => {
     filters.gender ||
     filters.year !== undefined ||
     filters.origin ||
-    filters.college,
+    filters.college ||
+    filters.university,
   );
 
   if (filters.search) params.set("search", filters.search);
@@ -109,6 +117,7 @@ const buildParamsFromFilters = (filters: FilterOptions): URLSearchParams => {
   if (filters.year !== undefined) params.set("year", String(filters.year));
   if (filters.origin) params.set("origin", filters.origin);
   if (filters.college) params.set("college", filters.college);
+  if (filters.university) params.set("university", filters.university);
 
   const currentPage = filters.page || DEFAULT_PAGE;
   if (!hasQueryFilters && currentPage > 1) {
@@ -171,7 +180,8 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     filters.gender ||
     filters.year !== undefined ||
     filters.origin ||
-    filters.college,
+    filters.college ||
+    filters.university,
   );
 
   const requestFilters = useMemo<FilterOptions>(
@@ -210,6 +220,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
           setFilterOptions({
             origin: response.formOptions.origin || [],
             college: response.formOptions.college || [],
+            university: response.formOptions.university || [],
           });
         } else {
           setFilterOptions(EMPTY_FILTER_OPTIONS);
@@ -351,6 +362,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     filters.year,
     filters.origin,
     filters.college,
+    filters.university,
   ].filter(Boolean).length;
 
   const genderOptions = [
@@ -403,6 +415,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   const collegeOptions = useMemo(
     () => buildFilterSelectOptions(filterOptions.college, filters.college),
     [buildFilterSelectOptions, filterOptions.college, filters.college],
+  );
+
+  const universityOptions = useMemo(
+    () => buildFilterSelectOptions(filterOptions.university, filters.university),
+    [buildFilterSelectOptions, filterOptions.university, filters.university],
   );
 
   return (
@@ -462,7 +479,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
         {/* ===== Filters Panel ===== */}
         {showFilters && (
           <Card className="mt-3 animate-slide-down" padding="md">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <Select
                 label="Ø§Ù„Ù†ÙˆØ¹"
                 value={filters.gender || ""}
@@ -502,6 +519,13 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 options={collegeOptions}
                 onChange={(value) => handleFilterChange("college", value)}
                 placeholder="Ø§Ø®ØªØ±"
+              />
+              <SmartSelect
+                label="ÇáÌÇãÚÉ"
+                value={filters.university || ""}
+                options={universityOptions}
+                onChange={(value) => handleFilterChange("university", value)}
+                placeholder="ÇÎÊÑ"
               />
             </div>
 
