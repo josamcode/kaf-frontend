@@ -16,13 +16,15 @@ import {
   UserCheck,
   UserX,
   TrendingUp,
-  Calendar,
   MapPin,
   GraduationCap,
+  X,
 } from "lucide-react";
 import { Stats } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
+import { Select, Card, EmptyState, Badge } from "../components/ui";
+import { PageLoader } from "../components/ui/Spinner";
 
 const AnalysisPage: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -36,10 +38,8 @@ const AnalysisPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-
       const filters = genderFilter ? { gender: genderFilter } : {};
       const response = await personsAPI.getStats(filters);
-
       if (response.success && response.stats) {
         setStats(response.stats);
       } else {
@@ -56,17 +56,9 @@ const AnalysisPage: React.FC = () => {
     loadStats();
   }, [genderFilter]);
 
-  const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
-
   const yearChartData =
     stats?.byYear.map((item) => ({
-      year: `السنة ${item._id}`,
-      count: item.count,
-    })) || [];
-
-  const originChartData =
-    stats?.topOrigins.slice(0, 5).map((item) => ({
-      name: item._id,
+      year: `سنة ${item._id}`,
       count: item.count,
     })) || [];
 
@@ -75,224 +67,423 @@ const AnalysisPage: React.FC = () => {
     { name: "بنات", value: stats?.girls || 0, color: "#EC4899" },
   ];
 
-  const StatCard: React.FC<{
-    title: string;
-    value: number;
-    icon: React.ReactNode;
-    color: string;
-  }> = ({ title, value, icon, color }) => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
+  const genderOptions = [
+    { value: "", label: "الكل" },
+    { value: "boy", label: "أولاد فقط" },
+    { value: "girl", label: "بنات فقط" },
+  ];
+
+  // Custom Tooltip
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-surface-900 text-white px-3.5 py-2.5 rounded-xl text-sm shadow-elevated border border-surface-800">
+          <p className="font-bold text-[13px]">{label}</p>
+          <p className="text-surface-300 text-xs mt-0.5">
+            {payload[0].value} شخص
+          </p>
         </div>
-        <div className={`p-3 rounded-full ${color}`}>{icon}</div>
-      </div>
-    </div>
-  );
+      );
+    }
+    return null;
+  };
+
+  // Custom Pie Tooltip
+  const PieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-surface-900 text-white px-3.5 py-2.5 rounded-xl text-sm shadow-elevated border border-surface-800">
+          <p className="font-bold text-[13px]">{payload[0].name}</p>
+          <p className="text-surface-300 text-xs mt-0.5">
+            {payload[0].value} شخص
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              التحليلات والإحصائيات
-            </h1>
-            <p className="text-gray-600 mt-1">
-              نظرة شاملة على بيانات المخدومين
-            </p>
-          </div>
-
-          {/* Gender Filter */}
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700 ml-2">
-              فلتر:
-            </label>
-            <select
-              value={genderFilter}
-              onChange={(e) => setGenderFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="">الكل</option>
-              <option value="boy">أولاد فقط</option>
-              <option value="girl">بنات فقط</option>
-            </select>
-          </div>
+    <div className="flex flex-col min-h-full">
+      {/* ===== Page Header ===== */}
+      <div className="flex items-start justify-between gap-3 mb-4 lg:mb-5">
+        <div>
+          <h1 className="text-lg lg:text-xl font-extrabold text-surface-900">
+            التحليلات
+          </h1>
+          <p className="text-xs lg:text-sm text-surface-500 mt-0.5 font-medium">
+            نظرة شاملة على البيانات والإحصائيات
+          </p>
         </div>
+        <Select
+          value={genderFilter}
+          onChange={(e) => setGenderFilter(e.target.value)}
+          options={genderOptions}
+          size="sm"
+          fullWidth={false}
+          containerClassName="w-32 lg:w-36"
+        />
       </div>
 
-      {/* Error Message */}
+      {/* ===== Error ===== */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p className="text-red-700">{error}</p>
+        <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-xl text-danger-700 text-sm font-semibold mb-4 animate-fade-in">
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="shrink-0 p-0.5 hover:bg-danger-100 rounded-lg transition-colors"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <span className="text-gray-600 mr-3">جاري تحميل الإحصائيات...</span>
-        </div>
+        <PageLoader text="جاري تحميل الإحصائيات..." />
       ) : stats ? (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="space-y-4 lg:space-y-5">
+          {/* ===== Stat Cards ===== */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-3">
             <StatCard
               title="إجمالي المخدومين"
               value={stats.total}
-              icon={<Users className="text-white" size={24} />}
-              color="bg-primary-500"
+              icon={<Users size={19} className="text-white" />}
+              iconBg="bg-gradient-to-br from-primary-500 to-primary-700"
+              trend={stats.total > 0 ? "active" : undefined}
             />
             <StatCard
-              title="عدد الأولاد"
+              title="الأولاد"
               value={stats.boys}
-              icon={<UserCheck className="text-white" size={24} />}
-              color="bg-blue-500"
+              icon={<UserCheck size={19} className="text-white" />}
+              iconBg="bg-gradient-to-br from-blue-400 to-blue-600"
+              percentage={
+                stats.total > 0
+                  ? Math.round((stats.boys / stats.total) * 100)
+                  : 0
+              }
             />
             <StatCard
-              title="عدد البنات"
+              title="البنات"
               value={stats.girls}
-              icon={<UserX className="text-white" size={24} />}
-              color="bg-pink-500"
+              icon={<UserX size={19} className="text-white" />}
+              iconBg="bg-gradient-to-br from-pink-400 to-pink-600"
+              percentage={
+                stats.total > 0
+                  ? Math.round((stats.girls / stats.total) * 100)
+                  : 0
+              }
             />
             <StatCard
               title="أكثر البلدان"
               value={stats.topOrigins[0]?.count || 0}
-              icon={<MapPin className="text-white" size={24} />}
-              color="bg-green-500"
+              subtitle={stats.topOrigins[0]?._id}
+              icon={<MapPin size={19} className="text-white" />}
+              iconBg="bg-gradient-to-br from-emerald-400 to-emerald-600"
             />
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* ===== Charts Row ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
             {/* Gender Distribution */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                توزيع حسب النوع
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={genderChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {genderChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex justify-center space-x-6 mt-4">
-                {genderChartData.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    ></div>
-                    <span className="text-sm text-gray-600">{item.name}</span>
-                  </div>
-                ))}
+            <Card padding="none">
+              <div className="p-4 lg:p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-bold text-surface-800 text-[14px] lg:text-[15px]">
+                    توزيع حسب النوع
+                  </h3>
+                </div>
+                <p className="text-[11px] text-surface-400 font-medium mb-3">
+                  نسبة الأولاد والبنات من إجمالي المخدومين
+                </p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={genderChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={52}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      {genderChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<PieTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Legend */}
+                <div className="flex justify-center gap-5 mt-1">
+                  {genderChartData.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-[11px] font-bold text-surface-600">
+                        {item.name}
+                      </span>
+                      <Badge variant="neutral" size="xs">
+                        {item.value}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </Card>
 
             {/* Year Distribution */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                توزيع حسب السنة الدراسية
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={yearChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="year" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#3B82F6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <Card padding="none">
+              <div className="p-4 lg:p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-bold text-surface-800 text-[14px] lg:text-[15px]">
+                    توزيع حسب السنة الدراسية
+                  </h3>
+                </div>
+                <p className="text-[11px] text-surface-400 font-medium mb-3">
+                  عدد المخدومين في كل سنة دراسية
+                </p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={yearChartData}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#e7e5e4"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="year"
+                      tick={{ fontSize: 11, fill: "#78716c", fontWeight: 600 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#a8a29e" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={30}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar
+                      dataKey="count"
+                      fill="url(#barGradient)"
+                      radius={[6, 6, 0, 0]}
+                      barSize={32}
+                    />
+                    <defs>
+                      <linearGradient
+                        id="barGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor="#14b8a6" />
+                        <stop offset="100%" stopColor="#0d9488" />
+                      </linearGradient>
+                    </defs>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
           </div>
 
-          {/* Top Origins */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                أكثر البلدان الأصلية
-              </h3>
-              <div className="space-y-3">
-                {stats.topOrigins.slice(0, 5).map((origin, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium ml-2">
-                        {index + 1}
-                      </div>
-                      <span className="text-gray-700">{origin._id}</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {origin.count}
-                    </span>
+          {/* ===== Lists Row ===== */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+            {/* Top Origins */}
+            <Card padding="none">
+              <div className="p-4 lg:p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                    <MapPin size={15} className="text-primary-700" />
                   </div>
-                ))}
+                  <div>
+                    <h3 className="font-bold text-surface-800 text-[14px] leading-none">
+                      أكثر البلدان الأصلية
+                    </h3>
+                    <p className="text-[11px] text-surface-400 font-medium mt-0.5">
+                      أعلى 5 بلدان
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {stats.topOrigins.slice(0, 5).map((origin, index) => {
+                    const maxCount = Math.max(
+                      ...stats.topOrigins.map((o) => o.count),
+                    );
+                    const percentage = (origin.count / maxCount) * 100;
+
+                    return (
+                      <div key={index} className="flex items-center gap-2.5">
+                        <div
+                          className={`
+                            w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-extrabold shrink-0
+                            ${
+                              index === 0
+                                ? "bg-primary-600 text-white"
+                                : index === 1
+                                  ? "bg-primary-100 text-primary-700"
+                                  : "bg-surface-100 text-surface-500"
+                            }
+                          `}
+                        >
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-[13px] font-semibold text-surface-800 truncate">
+                              {origin._id}
+                            </span>
+                            <span className="text-[13px] font-bold text-surface-900 shrink-0">
+                              {origin.count}
+                            </span>
+                          </div>
+                          <div className="w-full bg-surface-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-primary-400 to-primary-600 h-full rounded-full transition-all duration-700 ease-spring"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </Card>
 
             {/* Year Details */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                تفاصيل السنوات الدراسية
-              </h3>
-              <div className="space-y-3">
-                {stats.byYear.map((year, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <GraduationCap className="text-gray-400 ml-2" size={20} />
-                      <span className="text-gray-700">سنة {year._id}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-primary-500 h-2 rounded-full"
-                          style={{
-                            width: `${
-                              (year.count /
-                                Math.max(...stats.byYear.map((y) => y.count))) *
-                              100
-                            }%`,
-                          }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 w-8 text-left">
-                        {year.count}
-                      </span>
-                    </div>
+            <Card padding="none">
+              <div className="p-4 lg:p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <GraduationCap size={15} className="text-amber-700" />
                   </div>
-                ))}
+                  <div>
+                    <h3 className="font-bold text-surface-800 text-[14px] leading-none">
+                      تفاصيل السنوات الدراسية
+                    </h3>
+                    <p className="text-[11px] text-surface-400 font-medium mt-0.5">
+                      توزيع المخدومين حسب السنة
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {stats.byYear.map((year, index) => {
+                    const maxCount = Math.max(
+                      ...stats.byYear.map((y) => y.count),
+                    );
+                    const percentage = (year.count / maxCount) * 100;
+                    const pctOfTotal =
+                      stats.total > 0
+                        ? Math.round((year.count / stats.total) * 100)
+                        : 0;
+
+                    return (
+                      <div key={index} className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 bg-amber-100 text-amber-700 rounded-md flex items-center justify-center shrink-0">
+                          <GraduationCap size={12} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-[13px] font-semibold text-surface-800">
+                              سنة {year._id}
+                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="neutral" size="xs">
+                                {pctOfTotal}%
+                              </Badge>
+                              <span className="text-[13px] font-bold text-surface-900">
+                                {year.count}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-surface-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all duration-700 ease-spring"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </Card>
           </div>
-        </>
-      ) : (
-        <div className="text-center py-12">
-          <TrendingUp className="mx-auto text-gray-400 mb-4" size={48} />
-          <p className="text-gray-600">لا توجد بيانات متاحة للعرض</p>
         </div>
+      ) : (
+        <EmptyState
+          icon={<TrendingUp size={28} />}
+          title="لا توجد بيانات متاحة"
+          description="لا يوجد بيانات كافية لعرض الإحصائيات"
+        />
       )}
     </div>
   );
 };
+
+// ===== Stat Card Component =====
+interface StatCardProps {
+  title: string;
+  value: number;
+  subtitle?: string;
+  icon: React.ReactNode;
+  iconBg: string;
+  percentage?: number;
+  trend?: "active";
+}
+
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  subtitle,
+  icon,
+  iconBg,
+  percentage,
+  trend,
+}) => (
+  <Card padding="none" className="overflow-hidden">
+    <div className="p-3.5 lg:p-4">
+      <div className="flex items-start gap-2.5">
+        <div
+          className={`w-10 h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${iconBg}`}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] lg:text-xs font-bold text-surface-500 leading-none">
+            {title}
+          </p>
+          <p className="text-xl lg:text-2xl font-extrabold text-surface-900 mt-1 leading-none tracking-tight">
+            {value.toLocaleString("ar-EG")}
+          </p>
+          {subtitle && (
+            <p className="text-[10px] text-surface-400 font-semibold mt-1 truncate">
+              {subtitle}
+            </p>
+          )}
+          {percentage !== undefined && percentage > 0 && (
+            <div className="mt-1.5">
+              <div className="flex items-center gap-1.5">
+                <div className="flex-1 bg-surface-100 rounded-full h-1 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${iconBg}`}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-bold text-surface-500 shrink-0">
+                  {percentage}%
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </Card>
+);
 
 export default AnalysisPage;

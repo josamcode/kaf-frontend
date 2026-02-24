@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,29 +6,29 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import Header from "./components/Header";
-import Sidebar from "./components/Sidebar";
+import AppLayout from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import DataPage from "./pages/DataPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import AdminManagementPage from "./pages/AdminManagementPage";
 import PersonFormModal from "./components/PersonFormModal";
+import { ToastContainer, useToast } from "./components/ui";
 
 const AppContent: React.FC = () => {
   const { state } = useAuth();
   const [currentPage, setCurrentPage] = useState("data");
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showPersonForm, setShowPersonForm] = useState(false);
-  const [editingPerson, setEditingPerson] = useState(null);
+  const [editingPerson, setEditingPerson] = useState<any>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const toast = useToast();
 
-  // If not logged in, show login page
+  // Not logged in — show login
   if (!state.user || !state.token) {
     return <LoginPage />;
   }
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
-    setIsMenuOpen(false);
   };
 
   const handleAddPerson = () => {
@@ -42,10 +42,11 @@ const AppContent: React.FC = () => {
   };
 
   const handlePersonFormSuccess = () => {
+    const wasEditing = !!editingPerson;
     setShowPersonForm(false);
     setEditingPerson(null);
-    // Refresh the current page data
-    window.location.reload();
+    setRefreshKey((prev) => prev + 1);
+    toast.success(wasEditing ? "تم التعديل بنجاح" : "تمت الإضافة بنجاح");
   };
 
   const renderCurrentPage = () => {
@@ -53,17 +54,19 @@ const AppContent: React.FC = () => {
       case "data":
         return (
           <DataPage
+            key={refreshKey}
             onAddPerson={handleAddPerson}
             onEditPerson={handleEditPerson}
           />
         );
       case "analysis":
-        return <AnalysisPage />;
+        return <AnalysisPage key={refreshKey} />;
       case "admins":
         return <AdminManagementPage />;
       default:
         return (
           <DataPage
+            key={refreshKey}
             onAddPerson={handleAddPerson}
             onEditPerson={handleEditPerson}
           />
@@ -71,28 +74,13 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // repdeloy with new favicon
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header
-        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
-        isMenuOpen={isMenuOpen}
-      />
+    <>
+      <AppLayout currentPage={currentPage} onNavigate={handleNavigate}>
+        {renderCurrentPage()}
+      </AppLayout>
 
-      <div className="flex flex-1 max-w-7xl mx-auto w-full">
-        <Sidebar
-          isOpen={isMenuOpen}
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-        />
-
-        <main className="flex-1 lg:mr-64 flex flex-col">
-          <div className="flex-1">{renderCurrentPage()}</div>
-        </main>
-      </div>
-
-      {/* Person Form Modal */}
+      {/* Person form modal */}
       <PersonFormModal
         isOpen={showPersonForm}
         onClose={() => {
@@ -102,7 +90,10 @@ const AppContent: React.FC = () => {
         person={editingPerson}
         onSuccess={handlePersonFormSuccess}
       />
-    </div>
+
+      {/* Global toast notifications */}
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
+    </>
   );
 };
 

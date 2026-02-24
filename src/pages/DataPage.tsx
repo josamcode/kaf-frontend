@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Search,
-  Filter,
+  SlidersHorizontal,
   Plus,
   Edit,
   Trash2,
@@ -12,11 +11,28 @@ import {
   MapPin,
   GraduationCap,
   Eye,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  RefreshCw,
 } from "lucide-react";
 import { Person, FilterOptions } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import ViewPersonModal from "../components/ViewPersonModal";
+import {
+  Button,
+  IconButton,
+  SearchInput,
+  Select,
+  Input,
+  Badge,
+  Card,
+  EmptyState,
+  ConfirmDialog,
+  Avatar,
+} from "../components/ui";
+import { PageLoader } from "../components/ui/Spinner";
 
 interface DataPageProps {
   onAddPerson: () => void;
@@ -29,6 +45,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Delete confirmation
+  const [deletingPerson, setDeletingPerson] = useState<Person | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [filters, setFilters] = useState<FilterOptions>({
     page: 1,
@@ -37,40 +58,30 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
 
   const { hasPermission, canAccessGender } = useAuth();
 
-  // Function to sort persons alphabetically by name
   const sortPersonsAlphabetically = (persons: Person[]): Person[] => {
-    return persons.sort((a, b) => {
-      // Normalize Arabic names for proper sorting
-      const normalizeArabicName = (name: string) => {
-        return name
-          .replace(/أ/g, "ا") // Convert أ to ا
-          .replace(/إ/g, "ا") // Convert إ to ا
-          .replace(/آ/g, "ا") // Convert آ to ا
-          .replace(/ة/g, "ه") // Convert ة to ه
-          .replace(/ى/g, "ي") // Convert ى to ي
+    return [...persons].sort((a, b) => {
+      const normalize = (name: string) =>
+        name
+          .replace(/أ/g, "ا")
+          .replace(/إ/g, "ا")
+          .replace(/آ/g, "ا")
+          .replace(/ة/g, "ه")
+          .replace(/ى/g, "ي")
           .trim();
-      };
-
-      const nameA = normalizeArabicName(a.name);
-      const nameB = normalizeArabicName(b.name);
-
-      return nameA.localeCompare(nameB, "ar", {
+      return normalize(a.name).localeCompare(normalize(b.name), "ar", {
         numeric: true,
         sensitivity: "base",
       });
     });
   };
 
-  // Load persons
-  const loadPersons = async () => {
+  const loadPersons = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await personsAPI.getPersons(filters);
-
       if (response.success && response.persons) {
-        const sortedPersons = sortPersonsAlphabetically(response.persons);
-        setPersons(sortedPersons);
+        setPersons(sortPersonsAlphabetically(response.persons));
       } else {
         setError(response.message || "فشل في تحميل البيانات");
       }
@@ -79,47 +90,43 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     loadPersons();
-  }, [filters]);
+  }, [loadPersons]);
 
   const handleFilterChange = (key: keyof FilterOptions, value: any) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-      page: 1, // Reset to first page when filters change
-    }));
+    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
-  const handleSearch = (searchTerm: string) => {
-    handleFilterChange("search", searchTerm);
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    handleFilterChange("search", value || undefined);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا الشخص؟")) return;
-
+  const handleDeleteConfirm = async () => {
+    if (!deletingPerson) return;
+    setDeleteLoading(true);
     try {
-      const response = await personsAPI.deletePerson(id);
+      const response = await personsAPI.deletePerson(deletingPerson._id);
       if (response.success) {
-        loadPersons(); // Reload data
+        setDeletingPerson(null);
+        loadPersons();
       } else {
         setError(response.message || "فشل في حذف الشخص");
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "حدث خطأ في الخادم");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
-  const handleCall = (phone: string) => {
-    window.open(`tel:${phone}`, "_self");
-  };
-
+  const handleCall = (phone: string) => window.open(`tel:${phone}`, "_self");
   const handleWhatsApp = (phone: string) => {
-    // Clean phone number (remove spaces, dashes, etc.)
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
-    window.open(`https://wa.me/+2${cleanPhone}`, "_blank");
+    const clean = phone.replace(/[\s\-\(\)]/g, "");
+    window.open(`https://wa.me/+2${clean}`, "_blank");
   };
 
   const formatDate = (dateString?: string) => {
@@ -127,444 +134,498 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     return new Date(dateString).toLocaleDateString("ar-EG");
   };
 
-  const getGenderText = (gender: "boy" | "girl") => {
-    return gender === "boy" ? "ولد" : "بنت";
-  };
+  const getGenderText = (gender: "boy" | "girl") =>
+    gender === "boy" ? "ولد" : "بنت";
 
-  const getYearText = (year: number) => {
-    return `سنة ${year}`;
-  };
+  const activeFiltersCount = [
+    filters.gender,
+    filters.year,
+    filters.origin,
+    filters.college,
+  ].filter(Boolean).length;
+
+  const genderOptions = [
+    { value: "", label: "الكل" },
+    { value: "boy", label: "أولاد" },
+    { value: "girl", label: "بنات" },
+  ];
+
+  const yearOptions = [
+    { value: "", label: "الكل" },
+    { value: "1", label: "السنة الأولى" },
+    { value: "2", label: "السنة الثانية" },
+    { value: "3", label: "السنة الثالثة" },
+    { value: "4", label: "السنة الرابعة" },
+    { value: "5", label: "السنة الخامسة" },
+  ];
 
   return (
-    <div className="p-3 lg:p-6 h-full flex flex-col w-full">
-      {/* Header */}
-      <div className="mb-4 lg:mb-6">
-        <div className="flex flex-col gap-4">
+    <div className="flex flex-col min-h-full">
+      {/* ===== Page Header ===== */}
+      <div className="mb-4 lg:mb-5">
+        <div className="flex items-start justify-between gap-3 mb-3 lg:mb-4">
           <div>
-            <h1 className="text-xl lg:text-2xl font-bold text-gray-800">
+            <h1 className="text-lg lg:text-xl font-extrabold text-surface-900">
               بيانات المخدومين
             </h1>
-            <p className="text-sm lg:text-base text-gray-600 mt-1">
+            <p className="text-xs lg:text-sm text-surface-500 mt-0.5 font-medium">
               إدارة ومتابعة بيانات المخدومين
             </p>
           </div>
-
           {hasPermission("create_data") && (
-            <button
+            <Button
               onClick={onAddPerson}
-              className="flex items-center justify-center space-x-reverse space-x-2 px-4 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-sm"
+              icon={<Plus size={17} />}
+              size="md"
+              className="shrink-0"
             >
-              <span className="font-medium">إضافة شخص جديد</span>
-              <Plus size={20} />
-            </button>
+              <span className="hidden sm:inline">إضافة شخص</span>
+              <span className="sm:hidden">إضافة</span>
+            </Button>
           )}
         </div>
-      </div>
 
-      {/* Search and Filters */}
-      <div className="mb-4 lg:mb-6">
-        <div className="flex flex-col gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={20}
-            />
-            <input
-              type="text"
-              placeholder="البحث بالاسم، الكلية، الجامعة، أو البلد..."
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-          </div>
-
-          {/* Filter Toggle */}
-          <button
+        {/* ===== Search & Filter Bar ===== */}
+        <div className="flex items-center gap-2">
+          <SearchInput
+            value={searchTerm}
+            onChange={handleSearch}
+            placeholder="بحث بالاسم، الكلية، أو البلد..."
+            className="flex-1"
+          />
+          <IconButton
+            icon={<SlidersHorizontal size={18} />}
+            label="الفلاتر"
+            variant={showFilters ? "primary" : "outline"}
+            size="md"
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center justify-center space-x-reverse space-x-2 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            <span className="font-medium">فلاتر</span>
-            <Filter size={20} />
-          </button>
+            className={`relative ${showFilters ? "" : ""}`}
+          />
+          {activeFiltersCount > 0 && (
+            <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none">
+              {activeFiltersCount}
+            </span>
+          )}
         </div>
 
-        {/* Filters Panel */}
+        {/* ===== Filters Panel ===== */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Gender Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  النوع
-                </label>
-                <select
-                  value={filters.gender || ""}
-                  onChange={(e) =>
-                    handleFilterChange("gender", e.target.value || undefined)
-                  }
-                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
-                >
-                  <option value="">الكل</option>
-                  <option value="boy">أولاد</option>
-                  <option value="girl">بنات</option>
-                </select>
-              </div>
-
-              {/* Year Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  السنة الدراسية
-                </label>
-                <select
-                  value={filters.year || ""}
-                  onChange={(e) =>
-                    handleFilterChange(
-                      "year",
-                      e.target.value ? parseInt(e.target.value) : undefined
-                    )
-                  }
-                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
-                >
-                  <option value="">الكل</option>
-                  <option value="1">السنة الأولى</option>
-                  <option value="2">السنة الثانية</option>
-                  <option value="3">السنة الثالثة</option>
-                  <option value="4">السنة الرابعة</option>
-                  <option value="5">السنة الخامسة</option>
-                </select>
-              </div>
-
-              {/* Origin Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  البلد الأصلية
-                </label>
-                <input
-                  type="text"
-                  placeholder="البحث بالبلد..."
-                  value={filters.origin || ""}
-                  onChange={(e) =>
-                    handleFilterChange("origin", e.target.value || undefined)
-                  }
-                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
-                />
-              </div>
-
-              {/* College Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  الكلية
-                </label>
-                <input
-                  type="text"
-                  placeholder="البحث بالكلية..."
-                  value={filters.college || ""}
-                  onChange={(e) =>
-                    handleFilterChange("college", e.target.value || undefined)
-                  }
-                  className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-base"
-                />
-              </div>
+          <Card className="mt-3 animate-slide-down" padding="md">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Select
+                label="النوع"
+                value={filters.gender || ""}
+                onChange={(e) =>
+                  handleFilterChange("gender", e.target.value || undefined)
+                }
+                options={genderOptions}
+                size="sm"
+              />
+              <Select
+                label="السنة"
+                value={filters.year?.toString() || ""}
+                onChange={(e) =>
+                  handleFilterChange(
+                    "year",
+                    e.target.value ? parseInt(e.target.value) : undefined,
+                  )
+                }
+                options={yearOptions}
+                size="sm"
+              />
+              <Input
+                label="البلد"
+                placeholder="بحث..."
+                value={filters.origin || ""}
+                onChange={(e) =>
+                  handleFilterChange("origin", e.target.value || undefined)
+                }
+                size="sm"
+              />
+              <Input
+                label="الكلية"
+                placeholder="بحث..."
+                value={filters.college || ""}
+                onChange={(e) =>
+                  handleFilterChange("college", e.target.value || undefined)
+                }
+                size="sm"
+              />
             </div>
-          </div>
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={() => {
+                  setFilters({ page: 1, limit: 20 });
+                  setSearchTerm("");
+                }}
+                className="mt-3 text-xs font-bold text-danger-600 hover:text-danger-700 flex items-center gap-1 transition-colors"
+              >
+                <X size={12} />
+                مسح كل الفلاتر ({activeFiltersCount})
+              </button>
+            )}
+          </Card>
         )}
       </div>
 
-      {/* Error Message */}
+      {/* ===== Error Alert ===== */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p className="text-red-700">{error}</p>
+        <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-xl text-danger-700 text-sm font-semibold mb-4 animate-fade-in">
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="shrink-0 p-0.5 hover:bg-danger-100 rounded-lg transition-colors"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      {/* Data Display */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+      {/* ===== Data Content ===== */}
+      <div className="flex-1">
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-            <p className="text-gray-600 mt-2">جاري تحميل البيانات...</p>
-          </div>
+          <PageLoader text="جاري تحميل البيانات..." />
         ) : persons.length === 0 ? (
-          <div className="p-8 text-center">
-            <Users className="mx-auto text-gray-400 mb-4" size={48} />
-            <p className="text-gray-600">لا توجد بيانات متاحة</p>
-          </div>
+          <EmptyState
+            icon={<Users size={28} />}
+            title="لا توجد بيانات متاحة"
+            description="جرب تغيير الفلاتر أو أضف شخص جديد"
+            action={
+              hasPermission("create_data") ? (
+                <Button
+                  onClick={onAddPerson}
+                  icon={<Plus size={16} />}
+                  size="sm"
+                >
+                  إضافة شخص
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <>
-            {/* Mobile Cards View */}
-            <div className="block lg:hidden">
-              <div className="p-4 space-y-4">
-                {persons.map((person) => (
-                  <div
-                    key={person._id}
-                    className="bg-gray-50 rounded-xl p-4 border border-gray-200"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-lg">
-                          {person.name}
-                        </h3>
-                        <div className="flex items-center space-x-reverse space-x-2 mt-1">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              person.gender === "boy"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-pink-100 text-pink-800"
-                            }`}
-                          >
-                            {getGenderText(person.gender)}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            {getYearText(person.year)}
-                          </span>
+            {/* ===== Mobile Cards ===== */}
+            <div className="block lg:hidden space-y-2.5">
+              {persons.map((person, index) => (
+                <Card
+                  key={person._id}
+                  padding="none"
+                  className="animate-fade-in-up"
+                  style={
+                    {
+                      animationDelay: `${Math.min(index * 30, 300)}ms`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="p-3.5">
+                    {/* Top row — name + actions */}
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
+                      <div
+                        className="flex items-center gap-2.5 min-w-0 cursor-pointer"
+                        onClick={() => setViewingPerson(person)}
+                      >
+                        <Avatar
+                          name={person.name}
+                          size="md"
+                          className={
+                            person.gender === "boy"
+                              ? "!bg-blue-100 !text-blue-600"
+                              : "!bg-pink-100 !text-pink-600"
+                          }
+                        />
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-surface-900 text-[14px] leading-tight truncate">
+                            {person.name}
+                          </h3>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Badge
+                              variant={
+                                person.gender === "boy" ? "info" : "danger"
+                              }
+                              size="xs"
+                            >
+                              {getGenderText(person.gender)}
+                            </Badge>
+                            <Badge variant="primary" size="xs">
+                              سنة {person.year}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-reverse space-x-1">
-                        <button
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-0 shrink-0">
+                        <IconButton
+                          icon={<Eye size={15} />}
+                          label="عرض"
+                          size="sm"
                           onClick={() => setViewingPerson(person)}
-                          className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-                          title="عرض"
-                        >
-                          <Eye size={18} />
-                        </button>
+                        />
                         {hasPermission("edit_data") &&
                           canAccessGender(person.gender) && (
-                            <button
+                            <IconButton
+                              icon={<Edit size={15} />}
+                              label="تعديل"
+                              size="sm"
+                              variant="ghost"
                               onClick={() => onEditPerson(person)}
-                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="تعديل"
-                            >
-                              <Edit size={18} />
-                            </button>
+                              className="!text-primary-600"
+                            />
                           )}
                         {hasPermission("delete_data") &&
                           canAccessGender(person.gender) && (
-                            <button
-                              onClick={() => handleDelete(person._id)}
-                              className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                              title="حذف"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            <IconButton
+                              icon={<Trash2 size={15} />}
+                              label="حذف"
+                              size="sm"
+                              variant="danger"
+                              onClick={() => setDeletingPerson(person)}
+                            />
                           )}
                       </div>
                     </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center space-x-reverse space-x-2">
-                        <GraduationCap size={16} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {person.college || "غير محدد"}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-reverse space-x-2">
-                        <MapPin size={16} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {person.origin}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-reverse space-x-2">
-                        <Phone size={16} className="text-gray-400" />
-                        <span className="text-sm text-gray-600">
-                          {person.phone}
-                        </span>
-                      </div>
+                    {/* Info rows */}
+                    <div className="space-y-1 mb-3">
+                      <InfoRow icon={<GraduationCap size={13} />}>
+                        {person.college || "غير محدد"}
+                      </InfoRow>
+                      <InfoRow icon={<MapPin size={13} />}>
+                        {person.origin}
+                      </InfoRow>
+                      <InfoRow icon={<Phone size={13} />}>
+                        <span dir="ltr">{person.phone}</span>
+                      </InfoRow>
                     </div>
 
-                    <div className="flex items-center space-x-reverse space-x-2">
+                    {/* Contact buttons */}
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => handleCall(person.phone)}
-                        className="flex-1 flex items-center justify-center space-x-reverse space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="
+                          flex items-center justify-center gap-1.5 py-2.5
+                          bg-emerald-600 text-white rounded-xl text-[13px] font-bold
+                          hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.97]
+                          transition-all duration-200 shadow-sm
+                        "
                       >
-                        <span className="text-sm">اتصال</span>
-                        <Phone size={16} />
+                        <Phone size={14} />
+                        <span>اتصال</span>
                       </button>
                       <button
                         onClick={() => handleWhatsApp(person.phone)}
-                        className="flex-1 flex items-center justify-center space-x-reverse space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="
+                          flex items-center justify-center gap-1.5 py-2.5
+                          bg-green-600 text-white rounded-xl text-[13px] font-bold
+                          hover:bg-green-700 active:bg-green-800 active:scale-[0.97]
+                          transition-all duration-200 shadow-sm
+                        "
                       >
-                        <span className="text-sm">واتساب</span>
-                        <MessageCircle size={16} />
+                        <MessageCircle size={14} />
+                        <span>واتساب</span>
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </Card>
+              ))}
             </div>
 
-            {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto flex-1">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      الاسم
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      النوع
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      السنة
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      الكلية
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      البلد الأصلية
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      رقم الهاتف
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">
-                      الإجراءات
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {persons.map((person) => (
-                    <tr key={person._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">
-                          {person.name}
-                        </div>
-                        {person.birthDate && (
-                          <div className="text-sm text-gray-500 flex items-center mt-1">
-                            <Calendar size={14} className="mr-1" />
-                            {formatDate(person.birthDate)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            person.gender === "boy"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-pink-100 text-pink-800"
-                          }`}
+            {/* ===== Desktop Table ===== */}
+            <Card padding="none" className="hidden lg:block overflow-hidden">
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-surface-200 bg-surface-50/80">
+                      {[
+                        "الاسم",
+                        "النوع",
+                        "السنة",
+                        "الكلية",
+                        "البلد",
+                        "الهاتف",
+                        "الإجراءات",
+                      ].map((header) => (
+                        <th
+                          key={header}
+                          className="px-4 py-3 text-right text-[11px] font-bold text-surface-500 uppercase tracking-wider"
                         >
-                          {getGenderText(person.gender)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {getYearText(person.year)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-900">
-                          {person.college || "غير محدد"}
-                        </div>
-                        {person.university && (
-                          <div className="text-xs text-gray-500 flex items-center mt-1">
-                            <GraduationCap size={12} className="mr-1" />
-                            {person.university}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-900 flex items-center">
-                          <MapPin size={14} className="mr-1" />
-                          {person.origin}
-                        </div>
-                        {person.residence && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {person.residence}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {person.phone}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center space-x-reverse space-x-2">
-                          {/* View Button */}
-                          <button
-                            onClick={() => setViewingPerson(person)}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="عرض"
-                          >
-                            <Eye size={16} />
-                          </button>
-
-                          {/* Call Button */}
-                          <button
-                            onClick={() => handleCall(person.phone)}
-                            className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                            title="اتصال"
-                          >
-                            <Phone size={16} />
-                          </button>
-
-                          {/* WhatsApp Button */}
-                          <button
-                            onClick={() => handleWhatsApp(person.phone)}
-                            className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                            title="واتساب"
-                          >
-                            <MessageCircle size={16} />
-                          </button>
-
-                          {/* Edit Button */}
-                          {hasPermission("edit_data") &&
-                            canAccessGender(person.gender) && (
-                              <button
-                                onClick={() => onEditPerson(person)}
-                                className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                                title="تعديل"
-                              >
-                                <Edit size={16} />
-                              </button>
-                            )}
-
-                          {/* Delete Button */}
-                          {hasPermission("delete_data") &&
-                            canAccessGender(person.gender) && (
-                              <button
-                                onClick={() => handleDelete(person._id)}
-                                className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                                title="حذف"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                        </div>
-                      </td>
+                          {header}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-surface-100">
+                    {persons.map((person) => (
+                      <tr
+                        key={person._id}
+                        className="hover:bg-surface-50/60 transition-colors group"
+                      >
+                        {/* Name */}
+                        <td className="px-4 py-3">
+                          <div
+                            className="flex items-center gap-2.5 cursor-pointer"
+                            onClick={() => setViewingPerson(person)}
+                          >
+                            <Avatar
+                              name={person.name}
+                              size="sm"
+                              className={
+                                person.gender === "boy"
+                                  ? "!bg-blue-100 !text-blue-600"
+                                  : "!bg-pink-100 !text-pink-600"
+                              }
+                            />
+                            <div>
+                              <p className="font-bold text-surface-900 text-[13px] leading-tight">
+                                {person.name}
+                              </p>
+                              {person.birthDate && (
+                                <p className="text-[11px] text-surface-500 mt-0.5 flex items-center gap-1">
+                                  <Calendar size={10} />
+                                  {formatDate(person.birthDate)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Gender */}
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant={
+                              person.gender === "boy" ? "info" : "danger"
+                            }
+                            size="xs"
+                          >
+                            {getGenderText(person.gender)}
+                          </Badge>
+                        </td>
+
+                        {/* Year */}
+                        <td className="px-4 py-3 text-[13px] text-surface-700 font-semibold">
+                          سنة {person.year}
+                        </td>
+
+                        {/* College */}
+                        <td className="px-4 py-3">
+                          <p className="text-[13px] text-surface-700 font-medium">
+                            {person.college || "—"}
+                          </p>
+                          {person.university && (
+                            <p className="text-[11px] text-surface-500 mt-0.5 flex items-center gap-1">
+                              <GraduationCap size={10} />
+                              {person.university}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* Origin */}
+                        <td className="px-4 py-3">
+                          <p className="text-[13px] text-surface-700 font-medium flex items-center gap-1">
+                            <MapPin size={11} className="text-surface-400" />
+                            {person.origin}
+                          </p>
+                          {person.residence && (
+                            <p className="text-[11px] text-surface-500 mt-0.5">
+                              {person.residence}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* Phone */}
+                        <td
+                          className="px-4 py-3 text-[13px] text-surface-700 font-medium"
+                          dir="ltr"
+                        >
+                          {person.phone}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <IconButton
+                              icon={<Eye size={15} />}
+                              label="عرض"
+                              size="xs"
+                              onClick={() => setViewingPerson(person)}
+                            />
+                            <IconButton
+                              icon={<Phone size={15} />}
+                              label="اتصال"
+                              size="xs"
+                              onClick={() => handleCall(person.phone)}
+                              className="!text-emerald-600 hover:!bg-emerald-50"
+                            />
+                            <IconButton
+                              icon={<MessageCircle size={15} />}
+                              label="واتساب"
+                              size="xs"
+                              onClick={() => handleWhatsApp(person.phone)}
+                              className="!text-green-600 hover:!bg-green-50"
+                            />
+                            {hasPermission("edit_data") &&
+                              canAccessGender(person.gender) && (
+                                <IconButton
+                                  icon={<Edit size={15} />}
+                                  label="تعديل"
+                                  size="xs"
+                                  onClick={() => onEditPerson(person)}
+                                  className="!text-primary-600 hover:!bg-primary-50"
+                                />
+                              )}
+                            {hasPermission("delete_data") &&
+                              canAccessGender(person.gender) && (
+                                <IconButton
+                                  icon={<Trash2 size={15} />}
+                                  label="حذف"
+                                  size="xs"
+                                  variant="danger"
+                                  onClick={() => setDeletingPerson(person)}
+                                />
+                              )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </>
         )}
       </div>
 
-      {/* Pagination */}
+      {/* ===== Pagination ===== */}
       {persons.length > 0 && (
-        <div className="mt-4 lg:mt-6 flex justify-center">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() =>
-                handleFilterChange("page", Math.max(1, (filters.page || 1) - 1))
-              }
-              disabled={!filters.page || filters.page <= 1}
-              className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              السابق
-            </button>
-            <span className="px-4 py-2 text-sm text-gray-600 font-medium">
-              صفحة {filters.page || 1}
-            </span>
-            <button
-              onClick={() =>
-                handleFilterChange("page", (filters.page || 1) + 1)
-              }
-              className="px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 text-sm font-medium"
-            >
-              التالي
-            </button>
-          </div>
+        <div className="flex items-center justify-center gap-2 mt-4 lg:mt-5 pb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<ChevronRight size={15} />}
+            onClick={() =>
+              handleFilterChange("page", Math.max(1, (filters.page || 1) - 1))
+            }
+            disabled={!filters.page || filters.page <= 1}
+          >
+            السابق
+          </Button>
+          <span className="px-4 py-2 bg-surface-100 rounded-xl text-xs font-bold text-surface-700 min-w-[5rem] text-center">
+            صفحة {filters.page || 1}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<ChevronLeft size={15} />}
+            iconPosition="end"
+            onClick={() => handleFilterChange("page", (filters.page || 1) + 1)}
+            disabled={persons.length < (filters.limit || 20)}
+          >
+            التالي
+          </Button>
         </div>
       )}
 
-      {/* View Person Modal */}
+      {/* ===== View Modal ===== */}
       <ViewPersonModal
         isOpen={!!viewingPerson}
         onClose={() => setViewingPerson(null)}
@@ -572,8 +633,32 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
         onPersonUpdate={loadPersons}
         onPersonRefresh={(updatedPerson) => setViewingPerson(updatedPerson)}
       />
+
+      {/* ===== Delete Confirmation ===== */}
+      <ConfirmDialog
+        isOpen={!!deletingPerson}
+        onClose={() => setDeletingPerson(null)}
+        onConfirm={handleDeleteConfirm}
+        variant="danger"
+        title="حذف الشخص"
+        message={`هل أنت متأكد من حذف "${deletingPerson?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+        confirmText="حذف"
+        cancelText="إلغاء"
+        loading={deleteLoading}
+      />
     </div>
   );
 };
+
+// ===== Helper sub-component =====
+const InfoRow: React.FC<{
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ icon, children }) => (
+  <div className="flex items-center gap-2 text-[12px] text-surface-600 font-medium">
+    <span className="text-surface-400 shrink-0">{icon}</span>
+    <span className="truncate">{children}</span>
+  </div>
+);
 
 export default DataPage;

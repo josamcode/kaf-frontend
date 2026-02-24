@@ -1,88 +1,109 @@
-import React, { useState } from "react";
-import { Menu, X, LogOut, User } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { LogOut, User, ChevronDown, Shield } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
-interface HeaderProps {
-  onMenuToggle: () => void;
-  isMenuOpen: boolean;
-}
-
-const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMenuOpen }) => {
+const Header: React.FC = () => {
   const { state, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isSuperAdmin = state.user?.role === "super_admin";
+  const roleText = isSuperAdmin ? "أمين الخدمة" : "خادم";
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-3 py-3 sticky top-0 z-40">
-      <div className="flex items-center justify-between max-w-7xl mx-auto">
-        {/* User Menu and Mobile Menu Button */}
-        <div className="flex items-center space-x-reverse space-x-2">
-          {/* Mobile Menu Button */}
-          <button
-            onClick={onMenuToggle}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
-          >
-            {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-
-          {/* User Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center space-x-reverse space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="hidden xs:block text-right">
-                <div className="text-sm font-medium text-gray-700">
-                  {state.user?.username}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {state.user?.role === "super_admin" ? "أمين الخدمة" : "خادم"}
-                </div>
-              </div>
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <User size={16} className="text-primary-600" />
-              </div>
-            </button>
-
-            {/* Dropdown Menu */}
-            {showUserMenu && (
-              <div className="absolute left-0 lg:left-auto right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
-                <div className="py-2">
-                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                    <div className="text-sm font-medium text-gray-900">
-                      {state.user?.username}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {state.user?.role === "super_admin"
-                        ? "أمين الخدمة"
-                        : "خادم"}
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
-                  >
-                    <LogOut size={16} className="ml-3" />
-                    تسجيل الخروج
-                  </button>
-                </div>
-              </div>
-            )}
+    <header className="sticky top-0 z-40 glass border-b border-surface-200/50 safe-top">
+      <div className="flex items-center justify-between h-14 px-4 lg:h-16 lg:px-6 max-w-screen-2xl mx-auto">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 lg:w-10 lg:h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-sm">
+            <span className="text-white font-extrabold text-sm lg:text-base tracking-tight">
+              KAF
+            </span>
+          </div>
+          <div className="hidden sm:block">
+            <h1 className="text-[15px] font-bold text-surface-900 leading-none">
+              نظام الافتقاد
+            </h1>
+            <p className="text-[11px] text-surface-400 font-medium mt-0.5 leading-none">
+              إدارة البيانات والمتابعة
+            </p>
           </div>
         </div>
 
-        {/* Logo */}
-        <div className="flex items-center space-x-reverse space-x-2">
-          <h1 className="text-lg font-semibold text-gray-800 hidden xs:block">
-            نظام الافتقاد
-          </h1>
-          <div className="text-gray-800 font-bold text-lg px-3 py-2 rounded-xl shadow-sm">
-            KAF
-          </div>
+        {/* User menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="
+              flex items-center gap-2 py-1.5 px-2 rounded-xl
+              hover:bg-surface-100/80 active:bg-surface-200/60
+              transition-all duration-200
+            "
+          >
+            <ChevronDown
+              size={13}
+              className={`text-surface-400 transition-transform duration-200 ${
+                showUserMenu ? "rotate-180" : ""
+              }`}
+            />
+            <div className="text-left hidden sm:block">
+              <p className="text-[13px] font-bold text-surface-800 leading-none">
+                {state.user?.username}
+              </p>
+              <p className="text-[11px] text-surface-500 leading-none mt-1 flex items-center gap-1">
+                {/* {isSuperAdmin && <Shield size={9} />} */}
+                {roleText}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center ring-2 ring-white">
+              <User size={15} className="text-primary-700" />
+            </div>
+          </button>
+
+          {/* Dropdown */}
+          {showUserMenu && (
+            <div className="absolute left-0 mt-2 w-52 bg-white rounded-2xl shadow-elevated border border-surface-200/60 z-50 overflow-hidden animate-slide-down">
+              <div className="p-4 bg-surface-50/80 border-b border-surface-100">
+                <p className="font-bold text-surface-900 text-sm leading-none">
+                  {state.user?.username}
+                </p>
+                <p className="text-xs text-surface-500 mt-1.5 flex items-center gap-1">
+                  {isSuperAdmin && (
+                    <Shield size={10} className="text-primary-600" />
+                  )}
+                  {roleText}
+                </p>
+              </div>
+              <div className="p-1.5">
+                <button
+                  onClick={handleLogout}
+                  className="
+                    flex items-center gap-3 w-full px-3 py-2.5 text-sm text-danger-600
+                    hover:bg-danger-50 rounded-xl transition-colors
+                    active:bg-danger-100
+                  "
+                >
+                  <LogOut size={16} />
+                  <span className="font-semibold">تسجيل الخروج</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

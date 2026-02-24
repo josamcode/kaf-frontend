@@ -3,6 +3,7 @@ import { X, Plus, Save, AlertCircle } from "lucide-react";
 import { Person, PersonForm } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
+import { Modal, Button, Input, Select, IconButton, Badge } from "./ui";
 
 interface PersonFormModalProps {
   isOpen: boolean;
@@ -75,13 +76,10 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAddCustomField = () => {
@@ -102,16 +100,12 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
     setFormData((prev) => {
       const newCustomFields = { ...prev.customFields };
       delete newCustomFields[key];
-      return {
-        ...prev,
-        customFields: newCustomFields,
-      };
+      return { ...prev, customFields: newCustomFields };
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!hasPermission(person ? "edit_data" : "create_data")) {
       setError("ليس لديك صلاحية لهذا الإجراء");
       return;
@@ -121,11 +115,10 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
       setLoading(true);
       setError(null);
 
-      // Clean custom fields (remove undefined values)
       const cleanedCustomFields = Object.fromEntries(
         Object.entries(formData.customFields || {}).filter(
-          ([_, value]) => value !== undefined && value !== null && value !== ""
-        )
+          ([_, value]) => value !== undefined && value !== null && value !== "",
+        ),
       );
 
       const submitData = {
@@ -136,24 +129,18 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
             : undefined,
       };
 
-      if (person) {
-        // Update existing person
-        const response = await personsAPI.updatePerson(person._id, submitData);
-        if (response.success) {
-          onSuccess();
-          onClose();
-        } else {
-          setError(response.message || "فشل في تحديث البيانات");
-        }
+      const response = person
+        ? await personsAPI.updatePerson(person._id, submitData)
+        : await personsAPI.createPerson(submitData);
+
+      if (response.success) {
+        onSuccess();
+        handleClose();
       } else {
-        // Create new person
-        const response = await personsAPI.createPerson(submitData);
-        if (response.success) {
-          onSuccess();
-          onClose();
-        } else {
-          setError(response.message || "فشل في إضافة البيانات");
-        }
+        setError(
+          response.message ||
+            (person ? "فشل في تحديث البيانات" : "فشل في إضافة البيانات"),
+        );
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "حدث خطأ في الخادم");
@@ -167,274 +154,294 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
+  const customFieldEntries = Object.entries(formData.customFields || {}).filter(
+    ([_, value]) => value !== undefined,
+  );
+
+  const yearOptions = [
+    { value: "1", label: "السنة الأولى" },
+    { value: "2", label: "السنة الثانية" },
+    { value: "3", label: "السنة الثالثة" },
+    { value: "4", label: "السنة الرابعة" },
+    { value: "5", label: "السنة الخامسة" },
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {person ? "تعديل البيانات" : "إضافة شخص جديد"}
-          </h2>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={person ? "تعديل البيانات" : "إضافة شخص جديد"}
+      description={
+        person ? `تعديل بيانات ${person.name}` : "أدخل بيانات الشخص الجديد"
+      }
+      size="lg"
+      footer={
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleSubmit}
+            icon={<Save size={16} />}
+            loading={loading}
+            className="flex-1"
+            size="lg"
           >
-            <X size={20} />
-          </button>
+            {person ? "حفظ التغييرات" : "إضافة الشخص"}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleClose}
+            disabled={loading}
+            size="lg"
+          >
+            إلغاء
+          </Button>
         </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Error */}
+        {error && (
+          <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-xl animate-fade-in">
+            <AlertCircle
+              className="text-danger-500 shrink-0 mt-0.5"
+              size={17}
+            />
+            <span className="text-danger-700 text-[13px] font-semibold leading-relaxed flex-1">
+              {error}
+            </span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="shrink-0 p-0.5 hover:bg-danger-100 rounded-lg transition-colors"
+            >
+              <X size={13} className="text-danger-400" />
+            </button>
+          </div>
+        )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-reverse space-x-3">
-              <span className="text-red-700">{error}</span>
-              <AlertCircle className="text-red-500 flex-shrink-0" size={20} />
-            </div>
-          )}
-
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                الاسم <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
+        {/* ===== Basic Info ===== */}
+        <FormSection label="البيانات الأساسية">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Name — full width */}
+            <div className="sm:col-span-2">
+              <Input
+                label="الاسم"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="أدخل الاسم الكامل"
+                placeholder="الاسم الكامل"
               />
             </div>
 
+            {/* Gender */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                النوع <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-surface-700 mb-1.5">
+                النوع <span className="text-danger-500">*</span>
               </label>
-              <select
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="boy">ولد</option>
-                <option value="girl">بنت</option>
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    value: "boy",
+                    label: "ولد",
+                    emoji: "👦",
+                    activeClass: "border-blue-500 bg-blue-50 text-blue-700",
+                  },
+                  {
+                    value: "girl",
+                    label: "بنت",
+                    emoji: "👧",
+                    activeClass: "border-pink-500 bg-pink-50 text-pink-700",
+                  },
+                ].map((opt) => {
+                  const selected = formData.gender === opt.value;
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`
+                        flex items-center justify-center gap-2 py-3 rounded-xl border-2 cursor-pointer
+                        transition-all duration-200 text-sm font-bold active:scale-[0.97]
+                        ${selected ? opt.activeClass : "border-surface-200 text-surface-500 hover:border-surface-300"}
+                      `}
+                    >
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={opt.value}
+                        checked={selected}
+                        onChange={handleInputChange}
+                        className="sr-only"
+                      />
+                      <span>{opt.emoji}</span>
+                      <span>{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Birth Date */}
+            <Input
+              label="تاريخ الميلاد"
+              name="birthDate"
+              type="date"
+              value={formData.birthDate}
+              onChange={handleInputChange}
+            />
           </div>
+        </FormSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                تاريخ الميلاد
-              </label>
-              <input
-                type="date"
-                name="birthDate"
-                value={formData.birthDate}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                السنة الدراسية <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="year"
-                value={formData.year}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value={1}>السنة الأولى</option>
-                <option value={2}>السنة الثانية</option>
-                <option value={3}>السنة الثالثة</option>
-                <option value={4}>السنة الرابعة</option>
-                <option value={5}>السنة الخامسة</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Education Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                الكلية
-              </label>
-              <input
-                type="text"
-                name="college"
-                value={formData.college}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="أدخل اسم الكلية"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                الجامعة
-              </label>
-              <input
-                type="text"
+        {/* ===== Education ===== */}
+        <FormSection label="التعليم">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select
+              label="السنة الدراسية"
+              name="year"
+              value={formData.year.toString()}
+              onChange={handleInputChange}
+              options={yearOptions}
+              required
+            />
+            <Input
+              label="الكلية"
+              name="college"
+              value={formData.college}
+              onChange={handleInputChange}
+              placeholder="اسم الكلية"
+            />
+            <div className="sm:col-span-2">
+              <Input
+                label="الجامعة"
                 name="university"
                 value={formData.university}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="أدخل اسم الجامعة"
+                placeholder="اسم الجامعة"
               />
             </div>
           </div>
+        </FormSection>
 
-          {/* Location Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                البلد الأصلية <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="origin"
-                value={formData.origin}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="أدخل البلد الأصلية"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                مكان الإقامة
-              </label>
-              <input
-                type="text"
-                name="residence"
-                value={formData.residence}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="أدخل مكان الإقامة"
-              />
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              رقم الهاتف <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
+        {/* ===== Location & Contact ===== */}
+        <FormSection label="الموقع والتواصل">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="البلد الأصلية"
+              name="origin"
+              value={formData.origin}
               onChange={handleInputChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              placeholder="أدخل رقم الهاتف"
+              placeholder="البلد الأصلية"
             />
-          </div>
-
-          {/* Custom Fields */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              بيانات مخصصة
-            </label>
-
-            {/* Add Custom Field */}
-            <div className="flex flex-col sm:flex-row sm:space-x-2 sm:space-y-0 space-y-2 mb-4">
-              <input
-                type="text"
-                value={customFieldKey}
-                onChange={(e) => setCustomFieldKey(e.target.value)}
-                placeholder="اسم الحقل"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            <Input
+              label="مكان الإقامة"
+              name="residence"
+              value={formData.residence}
+              onChange={handleInputChange}
+              placeholder="مكان الإقامة"
+            />
+            <div className="sm:col-span-2">
+              <Input
+                label="رقم الهاتف"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleInputChange}
+                required
+                placeholder="01xxxxxxxxx"
+                className="text-left"
+                dir="ltr"
               />
-              <input
-                type="text"
-                value={customFieldValue}
-                onChange={(e) => setCustomFieldValue(e.target.value)}
-                placeholder="القيمة"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomField}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                إضافة
-              </button>
             </div>
-
-            {/* Display Custom Fields */}
-            {Object.entries(formData.customFields || {}).filter(
-              ([_, value]) => value !== undefined
-            ).length > 0 && (
-              <div className="space-y-2">
-                {Object.entries(formData.customFields || {})
-                  .filter(([_, value]) => value !== undefined)
-                  .map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <span className="font-medium text-gray-700">
-                          {key}:
-                        </span>
-                        <span className="text-gray-600 mr-2">{value}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCustomField(key)}
-                        className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            )}
           </div>
+        </FormSection>
 
-          {/* Form Actions */}
-          <div className="flex items-center justify-start space-x-reverse space-x-4 pt-6 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-reverse space-x-2"
-            >
-              {loading ? (
-                <>
-                  <span>جاري الحفظ...</span>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                </>
-              ) : (
-                <>
-                  <span>{person ? "حفظ التغييرات" : "إضافة الشخص"}</span>
-                  <Save size={16} />
-                </>
-              )}
-            </button>
-            <button
+        {/* ===== Custom Fields ===== */}
+        <FormSection label="بيانات مخصصة">
+          {/* Add custom field row */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <Input
+              value={customFieldKey}
+              onChange={(e) => setCustomFieldKey(e.target.value)}
+              placeholder="اسم الحقل"
+              size="sm"
+              containerClassName="flex-1"
+            />
+            <Input
+              value={customFieldValue}
+              onChange={(e) => setCustomFieldValue(e.target.value)}
+              placeholder="القيمة"
+              size="sm"
+              containerClassName="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddCustomField();
+                }
+              }}
+            />
+            <Button
               type="button"
-              onClick={handleClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              variant="secondary"
+              size="sm"
+              icon={<Plus size={15} />}
+              onClick={handleAddCustomField}
+              disabled={!customFieldKey.trim() || !customFieldValue.trim()}
+              className="shrink-0 sm:!h-9"
             >
-              إلغاء
-            </button>
+              إضافة
+            </Button>
           </div>
-        </form>
-      </div>
-    </div>
+
+          {/* Added fields */}
+          {customFieldEntries.length > 0 && (
+            <div className="space-y-1.5">
+              {customFieldEntries.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between gap-2 bg-surface-50 border border-surface-200/80 p-2.5 rounded-xl group"
+                >
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <Badge variant="neutral" size="xs">
+                      {key}
+                    </Badge>
+                    <span className="text-[13px] text-surface-700 font-medium truncate">
+                      {value}
+                    </span>
+                  </div>
+                  <IconButton
+                    icon={<X size={13} />}
+                    label={`حذف ${key}`}
+                    size="xs"
+                    variant="danger"
+                    onClick={() => handleRemoveCustomField(key)}
+                    className="opacity-50 group-hover:opacity-100"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {customFieldEntries.length === 0 && (
+            <p className="text-[11px] text-surface-400 font-medium text-center py-2">
+              لا توجد بيانات مخصصة — أضف حقول إضافية حسب الحاجة
+            </p>
+          )}
+        </FormSection>
+      </form>
+    </Modal>
   );
 };
+
+// ===== Form Section =====
+const FormSection: React.FC<{
+  label: string;
+  children: React.ReactNode;
+}> = ({ label, children }) => (
+  <fieldset>
+    <legend className="text-[12px] font-bold text-surface-400 uppercase tracking-wider mb-2.5">
+      {label}
+    </legend>
+    {children}
+  </fieldset>
+);
 
 export default PersonFormModal;

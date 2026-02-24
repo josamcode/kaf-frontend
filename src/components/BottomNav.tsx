@@ -50,6 +50,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
                     }
                   `}
                 >
+                  {/* Active indicator — top line */}
                   {isActive && (
                     <div className="absolute top-0 inset-x-5 h-[2.5px] bg-primary-500 rounded-b-full" />
                   )}
@@ -80,6 +81,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
 
       {/* ========== Desktop Sidebar ========== */}
       <aside className="hidden lg:flex lg:flex-col lg:w-56 xl:w-60 bg-white border-l border-surface-200/50 h-full">
+        {/* Nav items */}
         <nav className="flex-1 p-3 pt-5">
           <p className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.08em] mb-3 px-3">
             القائمة الرئيسية
@@ -103,6 +105,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
                       }
                     `}
                   >
+                    {/* Active bar */}
                     {isActive && (
                       <div className="absolute right-0 top-2 bottom-2 w-[3px] bg-primary-500 rounded-l-full" />
                     )}
@@ -127,6 +130,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
           </ul>
         </nav>
 
+        {/* Footer */}
         <div className="p-3 border-t border-surface-100">
           <div className="text-center py-1">
             <p className="text-[11px] font-bold text-surface-500">نظام KAF</p>
