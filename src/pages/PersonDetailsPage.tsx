@@ -100,7 +100,7 @@ const PersonDetailsPage: React.FC = () => {
     gender === "boy" ? "ولد" : "بنت";
 
   const formatYearLabel = (year: Person["year"]) =>
-    year === "graduated" ? "متخرج" : String(year);
+    year === "graduated" ? "خريج" : String(year);
 
   const handleAddNote = async () => {
     if (!person || !newNote.trim()) return;
@@ -630,7 +630,7 @@ const YearBadgeIcon: React.FC<{ year: Person["year"] }> = ({ year }) => {
 };
 
 const yearLabelShort = (year: Person["year"]) =>
-  year === "graduated" ? "متخرج" : `${year}`;
+  year === "graduated" ? "خريج" : `${year}`;
 
 const SectionTitle: React.FC<{
   icon: React.ReactNode;

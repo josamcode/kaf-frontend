@@ -66,7 +66,7 @@ const PersonDetailsPage: React.FC<PersonDetailsPageProps> = ({
     gender === "boy" ? "ولد" : "بنت";
 
   const formatYearLabel = (year: Person["year"]) =>
-    year === "graduated" ? "متخرج" : String(year);
+    year === "graduated" ? "خريج" : String(year);
 
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
