@@ -1,16 +1,27 @@
-export function registerServiceWorker(): void {
-  if (process.env.NODE_ENV !== "production") {
-    return;
-  }
-
+export function disableServiceWorkerCaching(): void {
   if (!("serviceWorker" in navigator)) {
     return;
   }
 
   window.addEventListener("load", () => {
-    const swUrl = `${process.env.PUBLIC_URL}/sw.js`;
-    navigator.serviceWorker.register(swUrl).catch((error) => {
-      console.error("Service worker registration failed:", error);
-    });
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => {
+        registrations.forEach((registration) => {
+          void registration.unregister();
+        });
+      })
+      .catch((error) => {
+        console.error("Service worker cleanup failed:", error);
+      });
+
+    if ("caches" in window) {
+      caches
+        .keys()
+        .then((cacheNames) => Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName))))
+        .catch((error) => {
+          console.error("Cache storage cleanup failed:", error);
+        });
+    }
   });
 }
