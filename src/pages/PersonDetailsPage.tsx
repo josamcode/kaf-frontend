@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
@@ -13,6 +13,11 @@ import {
   MessageCircle,
   BookOpen,
   Tag,
+  Info,
+  Users,
+  School,
+  ShieldCheck,
+  Contact,
 } from "lucide-react";
 import { Person } from "../types";
 import { personsAPI } from "../services/api";
@@ -36,10 +41,13 @@ const PersonDetailsPage: React.FC = () => {
 
   const [person, setPerson] = useState<Person | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
+
   const [newNote, setNewNote] = useState("");
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deleteNoteLoading, setDeleteNoteLoading] = useState(false);
 
@@ -80,7 +88,7 @@ const PersonDetailsPage: React.FC = () => {
   }, [successMessage]);
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "Not set";
+    if (!dateString) return "غير محدد";
     return new Date(dateString).toLocaleDateString("ar-EG");
   };
 
@@ -89,10 +97,10 @@ const PersonDetailsPage: React.FC = () => {
   };
 
   const getGenderText = (gender: "boy" | "girl") =>
-    gender === "boy" ? "Boy" : "Girl";
+    gender === "boy" ? "ولد" : "بنت";
 
   const formatYearLabel = (year: Person["year"]) =>
-    year === "graduated" ? "\u0645\u062a\u062e\u0631\u062c" : String(year);
+    year === "graduated" ? "متخرج" : String(year);
 
   const handleAddNote = async () => {
     if (!person || !newNote.trim()) return;
@@ -104,14 +112,14 @@ const PersonDetailsPage: React.FC = () => {
 
       const response = await personsAPI.addNote(person._id, newNote.trim());
       if (response.success) {
-        setSuccessMessage("Note added successfully.");
+        setSuccessMessage("تم إضافة الملاحظة بنجاح");
         setNewNote("");
         await loadPerson();
       } else {
-        setError(response.message || "Failed to add note.");
+        setError(response.message || "فشل في إضافة الملاحظة");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Server error while adding note.");
+      setError(err.response?.data?.message || "حدث خطأ في الخادم");
     } finally {
       setLoading(false);
     }
@@ -127,14 +135,14 @@ const PersonDetailsPage: React.FC = () => {
 
       const response = await personsAPI.deleteNote(person._id, deletingNoteId);
       if (response.success) {
-        setSuccessMessage("Note deleted successfully.");
+        setSuccessMessage("تم حذف الملاحظة بنجاح");
         setDeletingNoteId(null);
         await loadPerson();
       } else {
-        setError(response.message || "Failed to delete note.");
+        setError(response.message || "فشل في حذف الملاحظة");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Server error while deleting note.");
+      setError(err.response?.data?.message || "حدث خطأ في الخادم");
     } finally {
       setDeleteNoteLoading(false);
     }
@@ -142,9 +150,15 @@ const PersonDetailsPage: React.FC = () => {
 
   const handleCall = (phone: string) => window.open(`tel:${phone}`, "_self");
   const handleWhatsApp = (phone: string) => {
-    const clean = phone.replace(/[\\s\-()]/g, "");
+    const clean = phone.replace(/[\s\-()]/g, "");
     window.open(`https://wa.me/+2${clean}`, "_blank");
   };
+
+  const customFieldEntries = useMemo(
+    () => Object.entries(person?.customFields || {}),
+    [person?.customFields],
+  );
+  const hasCustomFields = customFieldEntries.length > 0;
 
   if (initialLoading) {
     return <PageLoader text="Loading person details..." />;
@@ -152,278 +166,552 @@ const PersonDetailsPage: React.FC = () => {
 
   if (!person) {
     return (
-      <EmptyState
-        icon={<User size={24} />}
-        title="Person not found"
-        description={error || "This person may have been deleted or is unavailable."}
-        action={
-          <Button variant="secondary" onClick={() => navigate("/data")}>
-            Back to data
-          </Button>
-        }
-      />
+      <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
+        <EmptyState
+          icon={<User size={24} />}
+          title="Person not found"
+          description={
+            error || "This person may have been deleted or is unavailable."
+          }
+          action={
+            <Button variant="secondary" onClick={() => navigate("/data")}>
+              Back to data
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
   if (!canAccessGender(person.gender)) {
     return (
-      <EmptyState
-        icon={<User size={24} />}
-        title="Access denied"
-        description="You do not have permission to view this person's details."
-        action={
-          <Button variant="secondary" onClick={() => navigate("/data")}>
-            Back to data
-          </Button>
-        }
-      />
+      <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
+        <EmptyState
+          icon={<ShieldCheck size={24} />}
+          title="Access denied"
+          description="You do not have permission to view this person's details."
+          action={
+            <Button variant="secondary" onClick={() => navigate("/data")}>
+              Back to data
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
-  const customFieldEntries = Object.entries(person.customFields || {});
-  const hasCustomFields = customFieldEntries.length > 0;
+  const genderText = getGenderText(person.gender);
+  const yearText = `سنة ${formatYearLabel(person.year)}`;
 
   return (
     <>
-      <div className="max-w-4xl mx-auto space-y-4 lg:space-y-5" lang="ar" dir="rtl">
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            icon={<ArrowRight size={16} />}
-            onClick={() => navigate("/data")}
-            size="sm"
-          >
-            العودة
-          </Button>
+      <div
+        className="w-full min-h-[calc(100vh-0px)] bg-page"
+        lang="ar"
+        dir="rtl"
+      >
+        {/* =========================
+            Minimal sticky header (no actions)
+           ========================= */}
+        <div className="sticky top-0 z-40 bg-page/92 backdrop-blur-md border-b border-surface-100">
+          <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12">
+            <div className="py-3 flex items-center gap-3">
+              <Button
+                variant="ghost"
+                icon={<ArrowRight size={16} />}
+                onClick={() => navigate("/data")}
+                size="sm"
+                className="shrink-0"
+              >
+                العودة
+              </Button>
+
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Avatar
+                  name={person.name}
+                  size="sm"
+                  className={
+                    person.gender === "boy"
+                      ? "!bg-blue-100 !text-blue-700"
+                      : "!bg-pink-100 !text-pink-700"
+                  }
+                  icon={<User size={16} />}
+                />
+                <div className="min-w-0">
+                  <h1 className="text-[14px] sm:text-[16px] font-extrabold text-surface-900 truncate">
+                    {person.name}
+                  </h1>
+                </div>
+              </div>
+
+              {/* optional tiny id pill */}
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
+                <Badge variant="neutral" size="xs">
+                  تفاصيل
+                </Badge>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {error && (
-          <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-xl animate-fade-in">
-            <span className="text-danger-700 text-[13px] font-semibold flex-1">
-              {error}
-            </span>
-          </div>
-        )}
-        {successMessage && (
-          <div className="flex items-start gap-2.5 p-3 bg-success-50 border border-success-100 rounded-xl animate-fade-in">
-            <span className="text-success-700 text-[13px] font-semibold flex-1">
-              {successMessage}
-            </span>
-          </div>
-        )}
-
-        <Card padding="none">
-          <div className="flex items-center gap-3 p-4 lg:p-5 border-b border-surface-100">
-            <Avatar
-              name={person.name}
-              size="md"
-              className={
-                person.gender === "boy"
-                  ? "!bg-blue-100 !text-blue-600"
-                  : "!bg-pink-100 !text-pink-600"
-              }
-              icon={<User size={18} />}
-            />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-base lg:text-lg font-bold text-surface-900 leading-tight truncate">
-                {person.name}
-              </h1>
-              <div className="flex items-center gap-1.5 mt-1">
-                <Badge variant={person.gender === "boy" ? "info" : "danger"} size="xs">
-                  {getGenderText(person.gender)}
-                </Badge>
-                <Badge variant="primary" size="xs">
-                  سنة {formatYearLabel(person.year)}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 lg:p-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <InfoItem
-                icon={<Calendar size={14} />}
-                label="تاريخ الميلاد"
-                value={formatDate(person.birthDate)}
-              />
-              <InfoItem
-                icon={<GraduationCap size={14} />}
-                label="الكلية"
-                value={person.college || "غير محدد"}
-              />
-              <InfoItem
-                icon={<BookOpen size={14} />}
-                label="الجامعة"
-                value={person.university || "غير محدد"}
-              />
-              <InfoItem icon={<MapPin size={14} />} label="البلد" value={person.origin} />
-              <InfoItem
-                icon={<MapPin size={14} />}
-                label="محل الإقامة"
-                value={person.residence || "غير محدد"}
-              />
-              <InfoItem
-                icon={<Phone size={14} />}
-                label="الهاتف"
-                value={person.phone}
-                dir="ltr"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => handleCall(person.phone)}
-                className="
-                  flex items-center justify-center gap-2 py-3
-                  bg-emerald-600 text-white rounded-xl text-[13px] font-bold
-                  hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.97]
-                  transition-all duration-200 shadow-sm
-                "
-              >
-                <Phone size={16} />
-                <span>اتصال</span>
-              </button>
-              <button
-                onClick={() => handleWhatsApp(person.phone)}
-                className="
-                  flex items-center justify-center gap-2 py-3
-                  bg-green-600 text-white rounded-xl text-[13px] font-bold
-                  hover:bg-green-700 active:bg-green-800 active:scale-[0.97]
-                  transition-all duration-200 shadow-sm
-                "
-              >
-                <MessageCircle size={16} />
-                <span>واتساب</span>
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        {hasCustomFields && (
-          <Card>
-            <SectionHeader
-              icon={<Tag size={14} className="text-purple-600" />}
-              title="البيانات المخصصة"
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5">
-              {customFieldEntries.map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex items-center gap-2.5 bg-purple-50/60 border border-purple-100/80 rounded-xl p-2.5"
-                >
-                  <div className="p-1.5 bg-purple-100 rounded-lg shrink-0">
-                    <Tag size={11} className="text-purple-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider leading-none">
-                      {key}
-                    </p>
-                    <p
-                      className="text-[13px] font-semibold text-surface-800 mt-0.5 truncate"
-                      dir="auto"
-                      style={{ unicodeBidi: "plaintext" }}
-                    >
-                      {value}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        {hasPermission("manage_notes") && (
-          <Card>
-            <SectionHeader
-              icon={<StickyNote size={14} className="text-amber-600" />}
-              title="الملاحظات"
-              count={person.notes?.length}
-            />
-
-            <div className="flex flex-col sm:flex-row gap-2 mt-2.5 mb-3">
-              <div className="flex-1 relative">
-                <Input
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="أضف ملاحظة جديدة..."
-                  size="sm"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newNote.trim()) {
-                      e.preventDefault();
-                      handleAddNote();
-                    }
-                  }}
-                  maxLength={500}
-                  dir="auto"
-                />
-                {newNote.length > 0 && (
-                  <span className="absolute left-3 -bottom-4 text-[10px] text-surface-400 font-medium">
-                    {newNote.length}/500
+        {/* =========================
+            Body
+           ========================= */}
+        <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12 py-6 space-y-4">
+          {/* Alerts */}
+          {(error || successMessage) && (
+            <div className="space-y-2">
+              {error && (
+                <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-2xl animate-fade-in">
+                  <span className="text-danger-700 text-[13px] font-semibold flex-1">
+                    {error}
                   </span>
-                )}
-              </div>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Plus size={15} />}
-                onClick={handleAddNote}
-                disabled={!newNote.trim()}
-                loading={loading}
-                className="shrink-0 sm:!h-9"
-              >
-                إضافة
-              </Button>
-            </div>
-
-            <div className="space-y-2 mt-4">
-              {person.notes && person.notes.length > 0 ? (
-                person.notes.map((note, index) => (
-                  <div
-                    key={note._id || index}
-                    className="bg-amber-50/50 border border-amber-100/80 rounded-xl p-3 group animate-fade-in"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="text-[13px] text-surface-800 leading-relaxed font-medium"
-                          dir="auto"
-                          style={{ unicodeBidi: "plaintext" }}
-                        >
-                          {note.content}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-2">
-                          <span className="text-[10px] text-surface-400 font-semibold">
-                            بواسطة: {note.createdBy.username}
-                          </span>
-                          <span className="text-[10px] text-surface-400 font-semibold">
-                            {formatDateTime(note.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <IconButton
-                        icon={<Trash2 size={13} />}
-                        label="حذف الملاحظة"
-                        size="xs"
-                        variant="danger"
-                        onClick={() => setDeletingNoteId(note._id!)}
-                        className="opacity-40 group-hover:opacity-100 shrink-0"
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState
-                  icon={<StickyNote size={24} />}
-                  title="لا توجد ملاحظات"
-                  description="أضف ملاحظة جديدة لتتبع المتابعة"
-                  compact
-                />
+                </div>
+              )}
+              {successMessage && (
+                <div className="flex items-start gap-2.5 p-3 bg-success-50 border border-success-100 rounded-2xl animate-fade-in">
+                  <span className="text-success-700 text-[13px] font-semibold flex-1">
+                    {successMessage}
+                  </span>
+                </div>
               )}
             </div>
-          </Card>
-        )}
+          )}
+
+          {/* Top cards row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Gender card (glanceable) */}
+            <Card padding="none" className="overflow-hidden">
+              <div
+                className={`
+      p-4
+      ${person.gender === "boy" ? "bg-blue-50" : "bg-pink-50"}
+      border-b
+      ${person.gender === "boy" ? "border-blue-100" : "border-pink-100"}
+    `}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`
+            p-2 rounded-2xl border
+            ${person.gender === "boy" ? "bg-blue-100 border-blue-200 text-blue-700" : "bg-pink-100 border-pink-200 text-pink-700"}
+          `}
+                    >
+                      <User size={16} />
+                    </div>
+                    <h3
+                      className={`
+            text-[12px] font-extrabold
+            ${person.gender === "boy" ? "text-blue-800" : "text-pink-800"}
+          `}
+                    >
+                      النوع
+                    </h3>
+                  </div>
+
+                  {/* tiny value pill */}
+                  <div
+                    className={`
+          px-2.5 py-1 rounded-full text-[11px] font-extrabold border
+          ${person.gender === "boy" ? "bg-blue-100/60 border-blue-200 text-blue-800" : "bg-pink-100/60 border-pink-200 text-pink-800"}
+        `}
+                  >
+                    {genderText}
+                  </div>
+                </div>
+              </div>
+
+              {/* minimalist body */}
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-surface-500 font-bold">
+                    تصنيف
+                  </span>
+                  <span
+                    className={`
+          text-[14px] font-extrabold
+          ${person.gender === "boy" ? "text-blue-700" : "text-pink-700"}
+        `}
+                  >
+                    {genderText}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Year card (glanceable) */}
+            <Card padding="none" className="overflow-hidden">
+              <div className="p-4 bg-violet-50 border-b border-violet-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-2xl bg-violet-100 border border-violet-200 text-violet-700">
+                      <School size={16} />
+                    </div>
+                    <h3 className="text-[12px] font-extrabold text-violet-800">
+                      السنة
+                    </h3>
+                  </div>
+
+                  {/* value pill */}
+                  <div className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-violet-100/60 border border-violet-200 text-violet-800">
+                    {yearLabelShort(person.year)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Body: big badge showing number or cap */}
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-surface-500 font-bold">
+                    المرحلة
+                  </span>
+
+                  <div
+                    className={`
+          flex items-center justify-center
+          w-11 h-11 rounded-2xl border
+          ${
+            person.year === "graduated"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-violet-50 border-violet-200 text-violet-800"
+          }
+        `}
+                    title={yearLabelShort(person.year)}
+                  >
+                    <YearBadgeIcon year={person.year} />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Actions card */}
+            <Card padding="none" className="overflow-hidden">
+              <div className="p-4">
+                <MiniHeader
+                  icon={<Contact size={14} className="text-emerald-700" />}
+                  title="إجراءات"
+                />
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleCall(person.phone)}
+                    className="
+                      flex items-center justify-center gap-2 h-11
+                      bg-emerald-600 text-white rounded-2xl text-[13px] font-extrabold
+                      hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98]
+                      transition-all duration-200 shadow-sm
+                    "
+                  >
+                    <Phone size={16} />
+                    اتصال
+                  </button>
+                  <button
+                    onClick={() => handleWhatsApp(person.phone)}
+                    className="
+                      flex items-center justify-center gap-2 h-11
+                      bg-green-600 text-white rounded-2xl text-[13px] font-extrabold
+                      hover:bg-green-700 active:bg-green-800 active:scale-[0.98]
+                      transition-all duration-200 shadow-sm
+                    "
+                  >
+                    <MessageCircle size={16} />
+                    واتساب
+                  </button>
+                </div>
+
+                <div className="mt-3 rounded-2xl border border-surface-100 bg-surface-50 px-3 py-2">
+                  <p className="text-[10px] text-surface-500 font-bold">
+                    رقم الهاتف
+                  </p>
+                  <p
+                    className="text-[13px] font-extrabold text-surface-900"
+                    dir="ltr"
+                  >
+                    {person.phone}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Main layout */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+            {/* Sidebar */}
+            <div className="xl:col-span-4 space-y-4">
+              {/* Identity / small profile */}
+              <Card padding="none" className="overflow-hidden">
+                <div className="p-4">
+                  <SectionTitle
+                    icon={<Info size={14} className="text-surface-700" />}
+                    title="بطاقة الملف"
+                  />
+                  <div className="mt-4 rounded-2xl border border-surface-100 bg-surface-50 p-3 flex items-center gap-3">
+                    <Avatar
+                      name={person.name}
+                      size="md"
+                      className={
+                        person.gender === "boy"
+                          ? "!bg-blue-100 !text-blue-700"
+                          : "!bg-pink-100 !text-pink-700"
+                      }
+                      icon={<User size={18} />}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-surface-500 font-bold">
+                        الاسم
+                      </p>
+                      <p className="text-[14px] font-extrabold text-surface-900 truncate">
+                        {person.name}
+                      </p>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <Badge
+                          variant={person.gender === "boy" ? "info" : "danger"}
+                          size="xs"
+                        >
+                          {genderText}
+                        </Badge>
+                        <Badge variant="primary" size="xs">
+                          {yearText}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2">
+                    <KeyValueRow
+                      icon={<Calendar size={14} />}
+                      label="تاريخ الميلاد"
+                      value={formatDate(person.birthDate)}
+                    />
+                    <KeyValueRow
+                      icon={<MapPin size={14} />}
+                      label="البلد"
+                      value={person.origin || "غير محدد"}
+                    />
+                    <KeyValueRow
+                      icon={<MapPin size={14} />}
+                      label="محل الإقامة"
+                      value={person.residence || "غير محدد"}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Custom fields */}
+              {hasCustomFields && (
+                <Card padding="none" className="overflow-hidden">
+                  <div className="p-4">
+                    <SectionTitle
+                      icon={<Tag size={14} className="text-purple-700" />}
+                      title="البيانات المخصصة"
+                      right={
+                        <Badge variant="neutral" size="xs">
+                          {customFieldEntries.length}
+                        </Badge>
+                      }
+                    />
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5">
+                      {customFieldEntries.map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex items-start gap-2.5 bg-purple-50/60 border border-purple-100/80 rounded-2xl p-3"
+                        >
+                          <div className="p-2 bg-purple-100 rounded-xl shrink-0 text-purple-700">
+                            <Tag size={12} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wider leading-none">
+                              {key}
+                            </p>
+                            <p
+                              className="text-[13px] font-semibold text-surface-900 mt-1 break-words"
+                              dir="auto"
+                              style={{ unicodeBidi: "plaintext" }}
+                            >
+                              {String(value)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Main */}
+            <div className="xl:col-span-8 space-y-4">
+              {/* Details */}
+              <Card padding="none" className="overflow-hidden">
+                <div className="p-4 sm:p-5">
+                  <SectionTitle
+                    icon={<Info size={14} className="text-surface-700" />}
+                    title="تفاصيل البيانات"
+                  />
+
+                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <InfoTile
+                      icon={<Calendar size={14} />}
+                      title="تاريخ الميلاد"
+                      value={formatDate(person.birthDate)}
+                    />
+                    <InfoTile
+                      icon={<Phone size={14} />}
+                      title="الهاتف"
+                      value={person.phone}
+                      valueDir="ltr"
+                    />
+                    <InfoTile
+                      icon={<GraduationCap size={14} />}
+                      title="الكلية"
+                      value={person.college || "غير محدد"}
+                    />
+                    <InfoTile
+                      icon={<BookOpen size={14} />}
+                      title="الجامعة"
+                      value={person.university || "غير محدد"}
+                    />
+                    <InfoTile
+                      icon={<MapPin size={14} />}
+                      title="البلد"
+                      value={person.origin || "غير محدد"}
+                    />
+                    <InfoTile
+                      icon={<MapPin size={14} />}
+                      title="محل الإقامة"
+                      value={person.residence || "غير محدد"}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Notes */}
+              <Card padding="none" className="overflow-hidden">
+                <div className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <SectionTitle
+                      icon={<StickyNote size={14} className="text-amber-700" />}
+                      title="الملاحظات"
+                      right={
+                        <Badge variant="neutral" size="xs">
+                          {person.notes?.length || 0}
+                        </Badge>
+                      }
+                    />
+                    {/* <div className="hidden sm:block text-[12px] text-surface-500 font-semibold">
+                      اكتب ملاحظة واضغط Enter للإضافة
+                    </div> */}
+                  </div>
+
+                  {hasPermission("manage_notes") ? (
+                    <>
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                        <div className="flex-1 relative">
+                          <Input
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            placeholder="أضف ملاحظة جديدة..."
+                            size="sm"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newNote.trim()) {
+                                e.preventDefault();
+                                handleAddNote();
+                              }
+                            }}
+                            maxLength={500}
+                            dir="auto"
+                          />
+                          {newNote.length > 0 && (
+                            <span className="absolute start-3 -bottom-4 text-[10px] text-surface-400 font-medium">
+                              {newNote.length}/500
+                            </span>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={<Plus size={15} />}
+                          onClick={handleAddNote}
+                          disabled={!newNote.trim()}
+                          loading={loading}
+                          className="shrink-0 sm:!h-9"
+                        >
+                          إضافة
+                        </Button>
+                      </div>
+
+                      <div className="mt-6 space-y-2">
+                        {person.notes && person.notes.length > 0 ? (
+                          person.notes.map((note, index) => (
+                            <div
+                              key={note._id || index}
+                              className="
+                                relative bg-amber-50/50 border border-amber-100/80
+                                rounded-2xl p-3.5 group animate-fade-in
+                              "
+                            >
+                              <div className="absolute inset-y-3 start-3 w-[3px] rounded-full bg-amber-200/70 hidden sm:block" />
+                              <div className="flex items-start justify-between gap-2 sm:ps-4">
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    className="text-[13px] text-surface-900 leading-relaxed font-semibold break-words"
+                                    dir="auto"
+                                    style={{ unicodeBidi: "plaintext" }}
+                                  >
+                                    {note.content}
+                                  </p>
+
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                                    <span className="text-[10px] text-surface-500 font-bold">
+                                      بواسطة: {note.createdBy.username}
+                                    </span>
+                                    <span className="text-[10px] text-surface-500 font-bold">
+                                      {formatDateTime(note.createdAt)}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <IconButton
+                                  icon={<Trash2 size={13} />}
+                                  label="حذف الملاحظة"
+                                  size="xs"
+                                  variant="danger"
+                                  onClick={() => setDeletingNoteId(note._id!)}
+                                  className="opacity-40 group-hover:opacity-100 shrink-0"
+                                />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <EmptyState
+                            icon={<StickyNote size={24} />}
+                            title="لا توجد ملاحظات"
+                            description="أضف ملاحظة جديدة لتتبع المتابعة"
+                            compact
+                          />
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="pt-2">
+                      <EmptyState
+                        icon={<StickyNote size={26} />}
+                        title="غير مصرح"
+                        description="ليس لديك صلاحية إدارة الملاحظات"
+                        compact
+                      />
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* Delete confirm */}
       <ConfirmDialog
         isOpen={!!deletingNoteId}
         onClose={() => setDeletingNoteId(null)}
@@ -439,23 +727,76 @@ const PersonDetailsPage: React.FC = () => {
   );
 };
 
-const InfoItem: React.FC<{
+export default PersonDetailsPage;
+
+/* =========================
+   Local UI helpers
+   ========================= */
+
+const MiniHeader: React.FC<{
   icon: React.ReactNode;
-  label: string;
+  title: string;
+}> = ({ icon, title }) => (
+  <div className="flex items-center gap-2">
+    <span className="shrink-0">{icon}</span>
+    <h3 className="text-[13px] font-extrabold text-surface-900">{title}</h3>
+  </div>
+);
+
+const YearBadgeIcon: React.FC<{ year: Person["year"] }> = ({ year }) => {
+  // Simple, glanceable: 1–5 show number badge, graduated shows cap
+  if (year === "graduated") return <GraduationCap size={18} />;
+  return (
+    <span className="text-[14px] font-extrabold leading-none tabular-nums">
+      {String(year)}
+    </span>
+  );
+};
+
+const yearLabelShort = (year: Person["year"]) =>
+  year === "graduated" ? "متخرج" : `${year}`;
+
+const SectionTitle: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+}> = ({ icon, title, subtitle, right }) => (
+  <div className="flex items-start justify-between gap-3">
+    <div className="flex items-start gap-2.5 min-w-0">
+      <div className="mt-0.5 shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <h3 className="font-extrabold text-surface-900 text-[14px] truncate">
+          {title}
+        </h3>
+        {subtitle && (
+          <p className="text-[12px] text-surface-500 font-semibold mt-0.5">
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+    {right ? <div className="shrink-0">{right}</div> : null}
+  </div>
+);
+
+const InfoTile: React.FC<{
+  icon: React.ReactNode;
+  title: string;
   value: string;
-  dir?: "ltr" | "rtl" | "auto";
-}> = ({ icon, label, value, dir }) => (
-  <div className="flex items-start gap-2.5">
-    <div className="p-1.5 bg-surface-100 rounded-lg shrink-0 mt-0.5 text-surface-500">
+  valueDir?: "ltr" | "rtl" | "auto";
+}> = ({ icon, title, value, valueDir }) => (
+  <div className="flex items-start gap-2.5 rounded-2xl border border-surface-100 bg-surface-50 p-3">
+    <div className="p-2 bg-surface-100 rounded-xl shrink-0 mt-0.5 text-surface-600">
       {icon}
     </div>
-    <div className="min-w-0">
-      <p className="text-[10px] text-surface-400 font-bold uppercase tracking-wider leading-none">
-        {label}
+    <div className="min-w-0 flex-1">
+      <p className="text-[10px] text-surface-400 font-extrabold uppercase tracking-wider leading-none">
+        {title}
       </p>
       <p
-        className="text-[13px] font-semibold text-surface-800 mt-1 truncate"
-        dir={dir}
+        className="text-[13px] font-semibold text-surface-900 mt-1 break-words"
+        dir={valueDir}
         style={{ unicodeBidi: "plaintext" }}
       >
         {value}
@@ -464,22 +805,38 @@ const InfoItem: React.FC<{
   </div>
 );
 
-const SectionHeader: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  count?: number;
-}> = ({ icon, title, count }) => (
-  <div className="flex items-center gap-2">
-    <span className="shrink-0">{icon}</span>
-    <h2 className="font-bold text-surface-800 text-[14px]">{title}</h2>
-    {count !== undefined && count > 0 && (
-      <Badge variant="neutral" size="xs">
-        {count}
-      </Badge>
-    )}
+const SummaryRow: React.FC<{
+  label: string;
+  value: string;
+  valueDir?: "ltr" | "rtl" | "auto";
+}> = ({ label, value, valueDir }) => (
+  <div className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-2xl bg-surface-50 border border-surface-100">
+    <span className="text-[12px] text-surface-500 font-bold">{label}</span>
+    <span
+      className="text-[12px] text-surface-900 font-extrabold"
+      dir={valueDir}
+    >
+      {value}
+    </span>
   </div>
 );
 
-export default PersonDetailsPage;
-
-
+const KeyValueRow: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}> = ({ icon, label, value }) => (
+  <div className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-2xl bg-surface-50 border border-surface-100">
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-surface-500 shrink-0">{icon}</span>
+      <span className="text-[12px] text-surface-600 font-bold">{label}</span>
+    </div>
+    <span
+      className="text-[12px] text-surface-900 font-extrabold truncate"
+      dir="auto"
+      style={{ unicodeBidi: "plaintext" }}
+    >
+      {value}
+    </span>
+  </div>
+);
