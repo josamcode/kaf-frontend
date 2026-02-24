@@ -205,15 +205,11 @@ const PersonDetailsPage: React.FC = () => {
 
   return (
     <>
-      <div
-        className="w-full min-h-[calc(100vh-0px)] bg-page"
-        lang="ar"
-        dir="rtl"
-      >
+      <div className="w-full bg-page" lang="ar" dir="rtl">
         {/* =========================
             Minimal sticky header (no actions)
            ========================= */}
-        <div className="sticky top-0 z-40 bg-page/92 backdrop-blur-md border-b border-surface-100">
+        <div className="bg-page/92 backdrop-blur-md border-b border-surface-100">
           <div className="w-full px-4 sm:px-6 lg:px-10 xl:px-12">
             <div className="py-3 flex items-center gap-3">
               <Button
@@ -226,7 +222,7 @@ const PersonDetailsPage: React.FC = () => {
                 العودة
               </Button>
 
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              {/* <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Avatar
                   name={person.name}
                   size="sm"
@@ -242,14 +238,7 @@ const PersonDetailsPage: React.FC = () => {
                     {person.name}
                   </h1>
                 </div>
-              </div>
-
-              {/* optional tiny id pill */}
-              <div className="hidden sm:flex items-center gap-2 shrink-0">
-                <Badge variant="neutral" size="xs">
-                  تفاصيل
-                </Badge>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
@@ -277,162 +266,6 @@ const PersonDetailsPage: React.FC = () => {
               )}
             </div>
           )}
-
-          {/* Top cards row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Gender card (glanceable) */}
-            <Card padding="none" className="overflow-hidden">
-              <div
-                className={`
-      p-4
-      ${person.gender === "boy" ? "bg-blue-50" : "bg-pink-50"}
-      border-b
-      ${person.gender === "boy" ? "border-blue-100" : "border-pink-100"}
-    `}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`
-            p-2 rounded-2xl border
-            ${person.gender === "boy" ? "bg-blue-100 border-blue-200 text-blue-700" : "bg-pink-100 border-pink-200 text-pink-700"}
-          `}
-                    >
-                      <User size={16} />
-                    </div>
-                    <h3
-                      className={`
-            text-[12px] font-extrabold
-            ${person.gender === "boy" ? "text-blue-800" : "text-pink-800"}
-          `}
-                    >
-                      النوع
-                    </h3>
-                  </div>
-
-                  {/* tiny value pill */}
-                  <div
-                    className={`
-          px-2.5 py-1 rounded-full text-[11px] font-extrabold border
-          ${person.gender === "boy" ? "bg-blue-100/60 border-blue-200 text-blue-800" : "bg-pink-100/60 border-pink-200 text-pink-800"}
-        `}
-                  >
-                    {genderText}
-                  </div>
-                </div>
-              </div>
-
-              {/* minimalist body */}
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-surface-500 font-bold">
-                    تصنيف
-                  </span>
-                  <span
-                    className={`
-          text-[14px] font-extrabold
-          ${person.gender === "boy" ? "text-blue-700" : "text-pink-700"}
-        `}
-                  >
-                    {genderText}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Year card (glanceable) */}
-            <Card padding="none" className="overflow-hidden">
-              <div className="p-4 bg-violet-50 border-b border-violet-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-2xl bg-violet-100 border border-violet-200 text-violet-700">
-                      <School size={16} />
-                    </div>
-                    <h3 className="text-[12px] font-extrabold text-violet-800">
-                      السنة
-                    </h3>
-                  </div>
-
-                  {/* value pill */}
-                  <div className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-violet-100/60 border border-violet-200 text-violet-800">
-                    {yearLabelShort(person.year)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Body: big badge showing number or cap */}
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] text-surface-500 font-bold">
-                    المرحلة
-                  </span>
-
-                  <div
-                    className={`
-          flex items-center justify-center
-          w-11 h-11 rounded-2xl border
-          ${
-            person.year === "graduated"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-              : "bg-violet-50 border-violet-200 text-violet-800"
-          }
-        `}
-                    title={yearLabelShort(person.year)}
-                  >
-                    <YearBadgeIcon year={person.year} />
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Actions card */}
-            <Card padding="none" className="overflow-hidden">
-              <div className="p-4">
-                <MiniHeader
-                  icon={<Contact size={14} className="text-emerald-700" />}
-                  title="إجراءات"
-                />
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleCall(person.phone)}
-                    className="
-                      flex items-center justify-center gap-2 h-11
-                      bg-emerald-600 text-white rounded-2xl text-[13px] font-extrabold
-                      hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98]
-                      transition-all duration-200 shadow-sm
-                    "
-                  >
-                    <Phone size={16} />
-                    اتصال
-                  </button>
-                  <button
-                    onClick={() => handleWhatsApp(person.phone)}
-                    className="
-                      flex items-center justify-center gap-2 h-11
-                      bg-green-600 text-white rounded-2xl text-[13px] font-extrabold
-                      hover:bg-green-700 active:bg-green-800 active:scale-[0.98]
-                      transition-all duration-200 shadow-sm
-                    "
-                  >
-                    <MessageCircle size={16} />
-                    واتساب
-                  </button>
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-surface-100 bg-surface-50 px-3 py-2">
-                  <p className="text-[10px] text-surface-500 font-bold">
-                    رقم الهاتف
-                  </p>
-                  <p
-                    className="text-[13px] font-extrabold text-surface-900"
-                    dir="ltr"
-                  >
-                    {person.phone}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </div>
 
           {/* Main layout */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -479,11 +312,6 @@ const PersonDetailsPage: React.FC = () => {
 
                   <div className="mt-3 grid grid-cols-1 gap-2">
                     <KeyValueRow
-                      icon={<Calendar size={14} />}
-                      label="تاريخ الميلاد"
-                      value={formatDate(person.birthDate)}
-                    />
-                    <KeyValueRow
                       icon={<MapPin size={14} />}
                       label="البلد"
                       value={person.origin || "غير محدد"}
@@ -493,6 +321,54 @@ const PersonDetailsPage: React.FC = () => {
                       label="محل الإقامة"
                       value={person.residence || "غير محدد"}
                     />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Actions card */}
+              <Card padding="none" className="overflow-hidden">
+                <div className="p-4">
+                  <MiniHeader
+                    icon={<Contact size={14} className="text-emerald-700" />}
+                    title="إجراءات"
+                  />
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleCall(person.phone)}
+                      className="
+                      flex items-center justify-center gap-2 h-11
+                      bg-emerald-600 text-white rounded-2xl text-[13px] font-extrabold
+                      hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98]
+                      transition-all duration-200 shadow-sm
+                    "
+                    >
+                      <Phone size={16} />
+                      اتصال
+                    </button>
+                    <button
+                      onClick={() => handleWhatsApp(person.phone)}
+                      className="
+                      flex items-center justify-center gap-2 h-11
+                      bg-green-600 text-white rounded-2xl text-[13px] font-extrabold
+                      hover:bg-green-700 active:bg-green-800 active:scale-[0.98]
+                      transition-all duration-200 shadow-sm
+                    "
+                    >
+                      <MessageCircle size={16} />
+                      واتساب
+                    </button>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-surface-100 bg-surface-50 px-3 py-2">
+                    {/* <p className="text-[10px] text-surface-500 font-bold">
+                      رقم الهاتف
+                    </p> */}
+                    <p
+                      className="text-[13px] font-extrabold text-surface-900"
+                      dir="ltr"
+                    >
+                      {person.phone}
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -547,10 +423,10 @@ const PersonDetailsPage: React.FC = () => {
                 <div className="p-4 sm:p-5">
                   <SectionTitle
                     icon={<Info size={14} className="text-surface-700" />}
-                    title="تفاصيل البيانات"
+                    title="البيانات"
                   />
 
-                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-right">
                     <InfoTile
                       icon={<Calendar size={14} />}
                       title="تاريخ الميلاد"

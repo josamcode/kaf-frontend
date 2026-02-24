@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   MapPin,
+  Globe2,
 } from "lucide-react";
 import { User, AdminForm, Permission } from "../types";
 import { authAPI, personsAPI } from "../services/api";
@@ -302,7 +303,7 @@ const AdminManagementPage: React.FC = () => {
     access === "boys" ? "info" : access === "girls" ? "danger" : "neutral";
 
   const getOriginAccessText = (origins?: string[]) => {
-    if (!origins || origins.length === 0) return "All origins";
+    if (!origins || origins.length === 0) return "كل البلاد";
     if (origins.length === 1) return origins[0];
     return `${origins[0]} +${origins.length - 1}`;
   };
@@ -312,7 +313,7 @@ const AdminManagementPage: React.FC = () => {
       {/* ===== Page Header ===== */}
       <div className="flex items-start justify-between gap-3 mb-4 lg:mb-5">
         <div>
-          <h1 className="text-lg lg:text-xl font-extrabold text-surface-900">
+          <h1 className="text-sm lg:text-xl font-extrabold text-surface-900">
             إدارة الخدام
           </h1>
           <p className="text-xs lg:text-sm text-surface-500 mt-0.5 font-medium">
@@ -459,90 +460,179 @@ const AdminManagementPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Origin Access */}
+          {/* Origin Access (Redesigned) */}
           <div>
-            <SectionLabel>صلاحيات الوصول من البلاد</SectionLabel>
-            <div className="mt-2.5 space-y-2.5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <SectionLabel>صلاحيات الوصول من البلاد</SectionLabel>
+                <p className="text-[12px] text-surface-500 font-medium mt-1">
+                  اتركها فارغة للسماح بالوصول من جميع البلاد.
+                </p>
+              </div>
+
+              {/* count pill */}
+              <div className="shrink-0">
+                <span
+                  className={`
+          inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-extrabold border
+          ${
+            formData.allowedOrigins.length > 0
+              ? "bg-primary-50 border-primary-100 text-primary-700"
+              : "bg-surface-50 border-surface-200 text-surface-500"
+          }
+        `}
+                >
+                  {formData.allowedOrigins.length > 0
+                    ? `${formData.allowedOrigins.length} بلد`
+                    : "الكل"}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-surface-200 bg-surface-50/70 p-3 sm:p-4">
+              {/* Add row */}
               <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  name="originInput"
-                  value={originInput}
-                  onChange={(e) => setOriginInput(e.target.value)}
-                  placeholder="إضافة مصدر (مثال: Cairo)"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addAllowedOrigin(originInput);
-                    }
-                  }}
-                />
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute start-3 top-1/2 -translate-y-1/2 text-surface-500">
+                      <MapPin size={16} />
+                    </span>
+
+                    <Input
+                      name="originInput"
+                      value={originInput}
+                      onChange={(e) => setOriginInput(e.target.value)}
+                      placeholder="أضف بلد... (مثال: Cairo)"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addAllowedOrigin(originInput);
+                        }
+                      }}
+                      className="ps-10"
+                    />
+                  </div>
+                </div>
+
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="primary"
                   size="md"
                   onClick={() => addAllowedOrigin(originInput)}
-                  className="shrink-0"
+                  className="sm:w-auto w-full"
                 >
                   إضافة
                 </Button>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
+              {/* Selected chips */}
+              <div className="mt-3">
                 {formData.allowedOrigins.length > 0 ? (
-                  formData.allowedOrigins.map((origin) => (
-                    <span
-                      key={origin}
-                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50 border border-primary-100"
-                    >
-                      <Badge variant="primary" size="xs">
-                        {origin}
-                      </Badge>
-                      <button
-                        type="button"
-                        onClick={() => removeAllowedOrigin(origin)}
-                        className="text-primary-500 hover:text-primary-700"
-                        aria-label={`إزالة ${origin}`}
+                  <div className="flex flex-wrap gap-2">
+                    {formData.allowedOrigins.map((origin) => (
+                      <span
+                        key={origin}
+                        className="
+                inline-flex items-center gap-2
+                px-2.5 py-1.5 rounded-2xl
+                bg-white border border-surface-200
+                shadow-sm
+              "
                       >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-xl bg-primary-50 border border-primary-100 text-primary-700">
+                          <MapPin size={12} />
+                        </span>
+
+                        <span className="text-[12px] font-extrabold text-surface-800">
+                          {origin}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeAllowedOrigin(origin)}
+                          className="
+                  inline-flex items-center justify-center
+                  w-7 h-7 rounded-xl
+                  text-surface-500 hover:text-danger-600
+                  hover:bg-danger-50
+                  transition-colors
+                "
+                          aria-label={`إزالة ${origin}`}
+                          title="إزالة"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 ) : (
-                  <span className="text-[12px] text-surface-500 font-medium">
-                    تعني القائمة الفارغة السماح بالوصول من جميع البلاد.
-                  </span>
+                  <div className="flex items-center gap-2 p-3 rounded-2xl bg-white border border-surface-200">
+                    <div className="w-9 h-9 rounded-2xl bg-surface-100 border border-surface-200 flex items-center justify-center text-surface-600">
+                      <Globe2 size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-extrabold text-surface-900">
+                        السماح للجميع
+                      </p>
+                      <p className="text-[12px] text-surface-500 font-medium">
+                        لا توجد بلاد محددة حالياً.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {originSuggestions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {originSuggestions
-                    .filter(
-                      (origin) =>
-                        !formData.allowedOrigins.some(
-                          (selected) =>
-                            selected.toLocaleLowerCase() ===
-                            origin.toLocaleLowerCase(),
-                        ),
-                    )
-                    .slice(0, 12)
-                    .map((origin) => (
-                      <button
-                        key={origin}
-                        type="button"
-                        onClick={() => addAllowedOrigin(origin)}
-                        className="px-2 py-1 rounded-lg border border-surface-200 text-[12px] font-semibold text-surface-600 hover:bg-surface-50"
-                      >
-                        + {origin}
-                      </button>
-                    ))}
-                </div>
-              )}
+              {/* Suggestions */}
+              {(originSuggestions.length > 0 || loadingOrigins) && (
+                <div className="mt-4 pt-4 border-t border-surface-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-extrabold text-surface-700">
+                      اقتراحات سريعة
+                    </p>
+                    {loadingOrigins && (
+                      <p className="text-[11px] text-surface-400 font-medium">
+                        جاري التحميل...
+                      </p>
+                    )}
+                  </div>
 
-              {loadingOrigins && (
-                <p className="text-[11px] text-surface-400">
-                  جاري تحميل البلاد...
-                </p>
+                  {originSuggestions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {originSuggestions
+                        .filter(
+                          (origin) =>
+                            !formData.allowedOrigins.some(
+                              (selected) =>
+                                selected.toLocaleLowerCase() ===
+                                origin.toLocaleLowerCase(),
+                            ),
+                        )
+                        .slice(0, 12)
+                        .map((origin) => (
+                          <button
+                            key={origin}
+                            type="button"
+                            onClick={() => addAllowedOrigin(origin)}
+                            className="
+                    inline-flex items-center gap-2
+                    px-2.5 py-1.5 rounded-2xl
+                    border border-surface-200 bg-white
+                    text-[12px] font-bold text-surface-700
+                    hover:bg-surface-50 hover:border-surface-300
+                    active:scale-[0.98]
+                    transition-all
+                  "
+                            title="إضافة"
+                          >
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-xl bg-surface-100 border border-surface-200 text-surface-600">
+                              <Plus size={12} />
+                            </span>
+                            {origin}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -621,95 +711,128 @@ const AdminManagementPage: React.FC = () => {
       ) : (
         <>
           {/* ===== Mobile Cards ===== */}
-          <div className="block lg:hidden space-y-2.5">
-            {admins.map((admin, index) => (
-              <Card
-                key={admin.id}
-                padding="none"
-                className="animate-fade-in-up"
-                style={
-                  {
-                    animationDelay: `${Math.min(index * 30, 300)}ms`,
-                  } as React.CSSProperties
-                }
-              >
-                <div className="p-3.5">
-                  {/* Top row */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Avatar
-                        name={admin.username}
-                        size="md"
-                        icon={
-                          admin.role === "super_admin" ? (
-                            <ShieldCheck size={18} />
-                          ) : (
-                            <Shield size={18} />
-                          )
-                        }
-                      />
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-surface-900 text-[14px] leading-tight truncate">
-                          {admin.username}
-                        </h3>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Badge
-                            variant={getRoleVariant(admin.role)}
-                            size="xs"
-                            dot
-                          >
-                            {getRoleText(admin.role)}
-                          </Badge>
-                          <Badge
-                            variant={getGenderVariant(admin.genderAccess)}
-                            size="xs"
-                          >
-                            {genderAccessLabels[admin.genderAccess]}
-                          </Badge>
-                          <Badge variant="neutral" size="xs">
-                            {getOriginAccessText(admin.allowedOrigins)}
-                          </Badge>
+          <div className="block lg:hidden space-y-3">
+            {admins.map((admin, index) => {
+              const isSuper = admin.role === "super_admin";
+              const permsCount = admin.permissions?.length || 0;
+
+              return (
+                <Card
+                  key={admin.id}
+                  padding="none"
+                  className="overflow-hidden animate-fade-in-up"
+                  style={
+                    {
+                      animationDelay: `${Math.min(index * 30, 300)}ms`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="p-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          name={admin.username}
+                          size="md"
+                          icon={
+                            isSuper ? (
+                              <ShieldCheck size={18} />
+                            ) : (
+                              <Shield size={18} />
+                            )
+                          }
+                        />
+
+                        <div className="min-w-0">
+                          <h3 className="text-[14px] font-extrabold text-surface-900 truncate">
+                            {admin.username}
+                          </h3>
+
+                          {/* compact meta line */}
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              variant={getRoleVariant(admin.role)}
+                              size="xs"
+                              dot
+                            >
+                              {getRoleText(admin.role)}
+                            </Badge>
+
+                            <Badge
+                              variant={getGenderVariant(admin.genderAccess)}
+                              size="xs"
+                            >
+                              {genderAccessLabels[admin.genderAccess]}
+                            </Badge>
+
+                            <Badge variant="neutral" size="xs">
+                              {getOriginAccessText(admin.allowedOrigins)}
+                            </Badge>
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <IconButton
+                          icon={<Edit size={15} />}
+                          label="تعديل"
+                          size="sm"
+                          onClick={() => handleEdit(admin)}
+                          className="!text-primary-600"
+                        />
+                        {!isSuper && (
+                          <IconButton
+                            icon={<Trash2 size={15} />}
+                            label="حذف"
+                            size="sm"
+                            variant="danger"
+                            onClick={() => setDeletingAdmin(admin)}
+                          />
+                        )}
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center shrink-0">
-                      <IconButton
-                        icon={<Edit size={15} />}
-                        label="تعديل"
-                        size="sm"
-                        onClick={() => handleEdit(admin)}
-                        className="!text-primary-600"
-                      />
-                      {admin.role !== "super_admin" && (
-                        <IconButton
-                          icon={<Trash2 size={15} />}
-                          label="حذف"
-                          size="sm"
-                          variant="danger"
-                          onClick={() => setDeletingAdmin(admin)}
-                        />
-                      )}
+                    {/* Divider */}
+                    <div className="my-3 border-t border-surface-100" />
+
+                    {/* Bottom row: permissions count + preview chips */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[12px] font-bold text-surface-500">
+                        {permsCount} صلاحية
+                      </div>
+
+                      {/* show up to 2 permissions only (clean) */}
+                      <div className="flex flex-wrap justify-end gap-1.5 min-w-0">
+                        {admin.permissions?.length ? (
+                          <>
+                            {admin.permissions.slice(0, 2).map((permission) => (
+                              <Badge
+                                key={permission}
+                                variant="success"
+                                size="xs"
+                              >
+                                {permissionLabels[permission]}
+                              </Badge>
+                            ))}
+
+                            {admin.permissions.length > 2 && (
+                              <span className="text-[11px] font-bold text-surface-500">
+                                +{admin.permissions.length - 2}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-[11px] font-bold text-surface-400">
+                            —
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Permissions */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {admin.permissions.map((permission) => (
-                      <Badge key={permission} variant="success" size="xs">
-                        {permissionLabels[permission]}
-                      </Badge>
-                    ))}
-                    {admin.permissions.length === 0 && (
-                      <span className="text-[11px] text-surface-400 font-medium">
-                        لا توجد صلاحيات
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
 
           {/* ===== Desktop Table ===== */}

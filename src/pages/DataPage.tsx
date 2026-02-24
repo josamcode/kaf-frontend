@@ -123,7 +123,8 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   };
 
   const handleCall = (phone: string) => window.open(`tel:${phone}`, "_self");
-  const handleViewPerson = (personId: string) => navigate(`/persons/${personId}`);
+  const handleViewPerson = (personId: string) =>
+    navigate(`/persons/${personId}`);
 
   const handleWhatsApp = (phone: string) => {
     const clean = phone.replace(/[\\s\-()]/g, "");
@@ -168,12 +169,12 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     <div className="flex flex-col min-h-full">
       {/* ===== Page Header ===== */}
       <div className="mb-4 lg:mb-5">
-        <div className="flex items-start justify-between gap-3 mb-3 lg:mb-4">
+        <div className="flex items-center lg:items-start justify-between gap-3 mb-3 lg:mb-4">
           <div>
             <h1 className="text-lg lg:text-xl font-extrabold text-surface-900">
               بيانات المخدومين
             </h1>
-            <p className="text-xs lg:text-sm text-surface-500 mt-0.5 font-medium">
+            <p className="text-xs lg:text-sm hidden lg:block text-surface-500 mt-0.5 font-medium">
               إدارة ومتابعة بيانات المخدومين
             </p>
           </div>
@@ -662,5 +663,3 @@ const InfoRow: React.FC<{
 );
 
 export default DataPage;
-
-

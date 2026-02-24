@@ -109,12 +109,12 @@ const AnalysisPage: React.FC = () => {
   return (
     <div className="flex flex-col min-h-full">
       {/* ===== Page Header ===== */}
-      <div className="flex items-start justify-between gap-3 mb-4 lg:mb-5">
+      <div className="flex items-center lg:items-start justify-between gap-3 mb-4 lg:mb-5">
         <div>
-          <h1 className="text-lg lg:text-xl font-extrabold text-surface-900">
+          <h1 className="text-sm lg:text-xl font-extrabold text-surface-900">
             التحليلات
           </h1>
-          <p className="text-xs lg:text-sm text-surface-500 mt-0.5 font-medium">
+          <p className="text-xs hidden lg:block lg:text-sm text-surface-500 mt-0.5 font-medium">
             نظرة شاملة على البيانات والإحصائيات
           </p>
         </div>
