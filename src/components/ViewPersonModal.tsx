@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Plus,
   Trash2,
@@ -11,12 +11,12 @@ import {
   MessageCircle,
   BookOpen,
   Tag,
+  ArrowRight,
 } from "lucide-react";
 import { Person } from "../types";
 import { personsAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import {
-  Modal,
   Button,
   IconButton,
   Input,
@@ -27,18 +27,16 @@ import {
   EmptyState,
 } from "./ui";
 
-interface ViewPersonModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface PersonDetailsPageProps {
   person: Person | null;
+  onBack?: () => void; // optional: navigate back
   onPersonUpdate: () => void;
   onPersonRefresh?: (person: Person) => void;
 }
 
-const ViewPersonModal: React.FC<ViewPersonModalProps> = ({
-  isOpen,
-  onClose,
+const PersonDetailsPage: React.FC<PersonDetailsPageProps> = ({
   person,
+  onBack,
   onPersonUpdate,
   onPersonRefresh,
 }) => {
@@ -64,6 +62,9 @@ const ViewPersonModal: React.FC<ViewPersonModalProps> = ({
 
   const getGenderText = (gender: "boy" | "girl") =>
     gender === "boy" ? "ولد" : "بنت";
+
+  const formatYearLabel = (year: Person["year"]) =>
+    year === "graduated" ? "\u0645\u062a\u062e\u0631\u062c" : String(year);
 
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
@@ -135,264 +136,381 @@ const ViewPersonModal: React.FC<ViewPersonModalProps> = ({
     window.open(`https://wa.me/+2${clean}`, "_blank");
   };
 
-  const handleClose = () => {
-    setNewNote("");
-    setError(null);
-    setSuccessMessage(null);
-    onClose();
-  };
-
-  const customFieldEntries = Object.entries(person.customFields || {});
-  const hasCustomFields = customFieldEntries.length > 0;
-
-  // Build custom header for the modal
-  const modalHeader = (
-    <div className="flex items-center gap-3 px-5 py-4 lg:px-6 border-b border-surface-100">
-      <Avatar
-        name={person.name}
-        size="md"
-        className={
-          person.gender === "boy"
-            ? "!bg-blue-100 !text-blue-600"
-            : "!bg-pink-100 !text-pink-600"
-        }
-        icon={<User size={18} />}
-      />
-      <div className="flex-1 min-w-0">
-        <h2 className="text-base lg:text-lg font-bold text-surface-900 leading-tight truncate">
-          {person.name}
-        </h2>
-        <div className="flex items-center gap-1.5 mt-1">
-          <Badge
-            variant={person.gender === "boy" ? "info" : "danger"}
-            size="xs"
-          >
-            {getGenderText(person.gender)}
-          </Badge>
-          <Badge variant="primary" size="xs">
-            سنة {person.year}
-          </Badge>
-        </div>
-      </div>
-    </div>
+  const customFieldEntries = useMemo(
+    () => Object.entries(person.customFields || {}),
+    [person.customFields],
   );
+  const hasCustomFields = customFieldEntries.length > 0;
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={handleClose} size="lg" showClose={true}>
-        {/* Custom header replaces default title */}
-        {modalHeader}
-
-        <div className="space-y-4 -mx-5 -mt-4 lg:-mx-6">
-          {/* Messages */}
-          <div className="px-5 lg:px-6 pt-4 space-y-2">
-            {error && (
-              <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-xl animate-fade-in">
-                <span className="text-danger-700 text-[13px] font-semibold flex-1">
-                  {error}
-                </span>
-              </div>
-            )}
-            {successMessage && (
-              <div className="flex items-start gap-2.5 p-3 bg-success-50 border border-success-100 rounded-xl animate-fade-in">
-                <span className="text-success-700 text-[13px] font-semibold flex-1">
-                  {successMessage}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ===== Personal Info ===== */}
-          <div className="px-5 lg:px-6">
-            <Card padding="none">
-              <div className="p-3.5 lg:p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <InfoItem
-                    icon={<Calendar size={14} />}
-                    label="تاريخ الميلاد"
-                    value={formatDate(person.birthDate)}
-                  />
-                  <InfoItem
-                    icon={<GraduationCap size={14} />}
-                    label="الكلية"
-                    value={person.college || "غير محدد"}
-                  />
-                  <InfoItem
-                    icon={<BookOpen size={14} />}
-                    label="الجامعة"
-                    value={person.university || "غير محدد"}
-                  />
-                  <InfoItem
-                    icon={<MapPin size={14} />}
-                    label="البلد الأصلية"
-                    value={person.origin}
-                  />
-                  <InfoItem
-                    icon={<MapPin size={14} />}
-                    label="مكان الإقامة"
-                    value={person.residence || "غير محدد"}
-                  />
-                  <InfoItem
-                    icon={<Phone size={14} />}
-                    label="رقم الهاتف"
-                    value={person.phone}
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* ===== Contact Buttons ===== */}
-          <div className="px-5 lg:px-6">
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => handleCall(person.phone)}
-                className="
-                  flex items-center justify-center gap-2 py-3
-                  bg-emerald-600 text-white rounded-xl text-[13px] font-bold
-                  hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.97]
-                  transition-all duration-200 shadow-sm
-                "
-              >
-                <Phone size={16} />
-                <span>اتصال</span>
-              </button>
-              <button
-                onClick={() => handleWhatsApp(person.phone)}
-                className="
-                  flex items-center justify-center gap-2 py-3
-                  bg-green-600 text-white rounded-xl text-[13px] font-bold
-                  hover:bg-green-700 active:bg-green-800 active:scale-[0.97]
-                  transition-all duration-200 shadow-sm
-                "
-              >
-                <MessageCircle size={16} />
-                <span>واتساب</span>
-              </button>
-            </div>
-          </div>
-
-          {/* ===== Custom Fields ===== */}
-          {hasCustomFields && (
-            <div className="px-5 lg:px-6">
-              <SectionHeader
-                icon={<Tag size={14} className="text-purple-600" />}
-                title="البيانات المخصصة"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2.5">
-                {customFieldEntries.map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex items-center gap-2.5 bg-purple-50/60 border border-purple-100/80 rounded-xl p-2.5"
-                  >
-                    <div className="p-1.5 bg-purple-100 rounded-lg shrink-0">
-                      <Tag size={11} className="text-purple-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider leading-none">
-                        {key}
-                      </p>
-                      <p className="text-[13px] font-semibold text-surface-800 mt-0.5 truncate">
-                        {value}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ===== Notes ===== */}
-          {hasPermission("manage_notes") && (
-            <div className="px-5 lg:px-6 pb-2">
-              <SectionHeader
-                icon={<StickyNote size={14} className="text-amber-600" />}
-                title="الملاحظات"
-                count={person.notes?.length}
-              />
-
-              {/* Add note */}
-              <div className="flex flex-col sm:flex-row gap-2 mt-2.5 mb-3">
-                <div className="flex-1 relative">
-                  <Input
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    placeholder="أضف ملاحظة جديدة..."
-                    size="sm"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newNote.trim()) {
-                        e.preventDefault();
-                        handleAddNote();
-                      }
-                    }}
-                    maxLength={500}
-                  />
-                  {newNote.length > 0 && (
-                    <span className="absolute left-3 -bottom-4 text-[10px] text-surface-400 font-medium">
-                      {newNote.length}/500
-                    </span>
-                  )}
-                </div>
+      <div className="w-full">
+        {/* ===== Sticky Page Header ===== */}
+        <div className="sticky top-0 z-30 bg-page/95 backdrop-blur-md border-b border-surface-100">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto py-4 flex items-center gap-3">
+              {onBack ? (
                 <Button
-                  variant="primary"
+                  variant="ghost"
                   size="sm"
-                  icon={<Plus size={15} />}
-                  onClick={handleAddNote}
-                  disabled={!newNote.trim()}
-                  loading={loading}
-                  className="shrink-0 sm:!h-9"
+                  icon={<ArrowRight size={16} />}
+                  onClick={onBack}
+                  className="shrink-0"
                 >
-                  إضافة
+                  رجوع
                 </Button>
+              ) : (
+                <div className="w-2" />
+              )}
+
+              <Avatar
+                name={person.name}
+                size="md"
+                className={
+                  person.gender === "boy"
+                    ? "!bg-blue-100 !text-blue-600"
+                    : "!bg-pink-100 !text-pink-600"
+                }
+                icon={<User size={18} />}
+              />
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-base sm:text-lg font-extrabold text-surface-900 truncate">
+                    {person.name}
+                  </h1>
+                  <Badge
+                    variant={person.gender === "boy" ? "info" : "danger"}
+                    size="xs"
+                  >
+                    {getGenderText(person.gender)}
+                  </Badge>
+                  <Badge variant="primary" size="xs">
+                    سنة {formatYearLabel(person.year)}
+                  </Badge>
+                </div>
+                <p className="text-[12px] text-surface-500 font-semibold mt-0.5">
+                  ملف التفاصيل والمتابعة
+                </p>
               </div>
 
-              {/* Notes list */}
-              <div className="space-y-2 mt-4">
-                {person.notes && person.notes.length > 0 ? (
-                  person.notes.map((note, index) => (
-                    <div
-                      key={note._id || index}
-                      className="bg-amber-50/50 border border-amber-100/80 rounded-xl p-3 group animate-fade-in"
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => handleCall(person.phone)}
+                  className="
+                    hidden sm:flex items-center justify-center gap-2 px-3 h-9
+                    bg-emerald-600 text-white rounded-xl text-[13px] font-bold
+                    hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98]
+                    transition-all duration-200 shadow-sm
+                  "
+                >
+                  <Phone size={16} />
+                  <span>اتصال</span>
+                </button>
+
+                <button
+                  onClick={() => handleWhatsApp(person.phone)}
+                  className="
+                    hidden sm:flex items-center justify-center gap-2 px-3 h-9
+                    bg-green-600 text-white rounded-xl text-[13px] font-bold
+                    hover:bg-green-700 active:bg-green-800 active:scale-[0.98]
+                    transition-all duration-200 shadow-sm
+                  "
+                >
+                  <MessageCircle size={16} />
+                  <span>واتساب</span>
+                </button>
+
+                {/* Mobile quick actions */}
+                <div className="sm:hidden flex items-center gap-2">
+                  <IconButton
+                    icon={<Phone size={16} />}
+                    label="اتصال"
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleCall(person.phone)}
+                  />
+                  <IconButton
+                    icon={<MessageCircle size={16} />}
+                    label="واتساب"
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleWhatsApp(person.phone)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== Page Body ===== */}
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-7xl mx-auto space-y-4">
+            {/* Messages */}
+            {(error || successMessage) && (
+              <div className="space-y-2">
+                {error && (
+                  <div className="flex items-start gap-2.5 p-3 bg-danger-50 border border-danger-200/60 rounded-2xl animate-fade-in">
+                    <span className="text-danger-700 text-[13px] font-semibold flex-1">
+                      {error}
+                    </span>
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="flex items-start gap-2.5 p-3 bg-success-50 border border-success-100 rounded-2xl animate-fade-in">
+                    <span className="text-success-700 text-[13px] font-semibold flex-1">
+                      {successMessage}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Top Summary Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card padding="none" className="lg:col-span-2">
+                <div className="p-4">
+                  <SectionHeader
+                    icon={<User size={14} className="text-surface-700" />}
+                    title="البيانات الأساسية"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <InfoItem
+                      icon={<Calendar size={14} />}
+                      label="تاريخ الميلاد"
+                      value={formatDate(person.birthDate)}
+                    />
+                    <InfoItem
+                      icon={<Phone size={14} />}
+                      label="رقم الهاتف"
+                      value={person.phone}
+                      dir="ltr"
+                    />
+                    <InfoItem
+                      icon={<MapPin size={14} />}
+                      label="البلد الأصلية"
+                      value={person.origin}
+                    />
+                    <InfoItem
+                      icon={<MapPin size={14} />}
+                      label="مكان الإقامة"
+                      value={person.residence || "غير محدد"}
+                    />
+                    <InfoItem
+                      icon={<GraduationCap size={14} />}
+                      label="الكلية"
+                      value={person.college || "غير محدد"}
+                    />
+                    <InfoItem
+                      icon={<BookOpen size={14} />}
+                      label="الجامعة"
+                      value={person.university || "غير محدد"}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              <Card padding="none">
+                <div className="p-4">
+                  <SectionHeader
+                    icon={<StickyNote size={14} className="text-amber-700" />}
+                    title="ملخص المتابعة"
+                  />
+                  <div className="mt-3 space-y-2">
+                    <SummaryRow
+                      label="عدد الملاحظات"
+                      value={`${person.notes?.length || 0}`}
+                    />
+                    <SummaryRow label="السنة" value={`سنة ${formatYearLabel(person.year)}`} />
+                    <SummaryRow
+                      label="النوع"
+                      value={getGenderText(person.gender)}
+                    />
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleCall(person.phone)}
+                      className="
+                        flex items-center justify-center gap-2 py-3
+                        bg-emerald-600 text-white rounded-2xl text-[13px] font-bold
+                        hover:bg-emerald-700 active:bg-emerald-800 active:scale-[0.98]
+                        transition-all duration-200 shadow-sm
+                      "
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] text-surface-800 leading-relaxed font-medium">
-                            {note.content}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-2">
-                            <span className="text-[10px] text-surface-400 font-semibold">
-                              بواسطة: {note.createdBy.username}
-                            </span>
-                            <span className="text-[10px] text-surface-400 font-semibold">
-                              {formatDateTime(note.createdAt)}
-                            </span>
+                      <Phone size={16} />
+                      <span>اتصال</span>
+                    </button>
+                    <button
+                      onClick={() => handleWhatsApp(person.phone)}
+                      className="
+                        flex items-center justify-center gap-2 py-3
+                        bg-green-600 text-white rounded-2xl text-[13px] font-bold
+                        hover:bg-green-700 active:bg-green-800 active:scale-[0.98]
+                        transition-all duration-200 shadow-sm
+                      "
+                    >
+                      <MessageCircle size={16} />
+                      <span>واتساب</span>
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Main Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Left column */}
+              <div className="lg:col-span-1 space-y-4">
+                {hasCustomFields && (
+                  <Card padding="none">
+                    <div className="p-4">
+                      <SectionHeader
+                        icon={<Tag size={14} className="text-purple-700" />}
+                        title="البيانات المخصصة"
+                        count={customFieldEntries.length}
+                      />
+                      <div className="grid grid-cols-1 gap-2.5 mt-3">
+                        {customFieldEntries.map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex items-center gap-2.5 bg-purple-50/60 border border-purple-100/80 rounded-2xl p-3"
+                          >
+                            <div className="p-2 bg-purple-100 rounded-xl shrink-0">
+                              <Tag size={12} className="text-purple-700" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wider leading-none">
+                                {key}
+                              </p>
+                              <p className="text-[13px] font-semibold text-surface-800 mt-1 truncate">
+                                {String(value)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <IconButton
-                          icon={<Trash2 size={13} />}
-                          label="حذف الملاحظة"
-                          size="xs"
-                          variant="danger"
-                          onClick={() => setDeletingNoteId(note._id!)}
-                          className="opacity-40 group-hover:opacity-100 shrink-0"
-                        />
+                        ))}
                       </div>
                     </div>
-                  ))
+                  </Card>
+                )}
+              </div>
+
+              {/* Right column (Notes) */}
+              <div className="lg:col-span-2">
+                {hasPermission("manage_notes") ? (
+                  <Card padding="none">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <SectionHeader
+                          icon={
+                            <StickyNote size={14} className="text-amber-700" />
+                          }
+                          title="الملاحظات"
+                          count={person.notes?.length}
+                        />
+
+                        {/* Add note (desktop quick) */}
+                        <div className="hidden sm:block text-[12px] text-surface-500 font-semibold">
+                          اكتب ملاحظة واضغط Enter للإضافة
+                        </div>
+                      </div>
+
+                      {/* Add note */}
+                      <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                        <div className="flex-1 relative">
+                          <Input
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            placeholder="أضف ملاحظة جديدة..."
+                            size="sm"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newNote.trim()) {
+                                e.preventDefault();
+                                handleAddNote();
+                              }
+                            }}
+                            maxLength={500}
+                          />
+                          {newNote.length > 0 && (
+                            <span className="absolute left-3 -bottom-4 text-[10px] text-surface-400 font-medium">
+                              {newNote.length}/500
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={<Plus size={15} />}
+                          onClick={handleAddNote}
+                          disabled={!newNote.trim()}
+                          loading={loading}
+                          className="shrink-0 sm:!h-9"
+                        >
+                          إضافة
+                        </Button>
+                      </div>
+
+                      {/* Notes list */}
+                      <div className="mt-6 space-y-2">
+                        {person.notes && person.notes.length > 0 ? (
+                          person.notes.map((note, index) => (
+                            <div
+                              key={note._id || index}
+                              className="bg-amber-50/50 border border-amber-100/80 rounded-2xl p-3.5 group animate-fade-in"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[13px] text-surface-900 leading-relaxed font-semibold">
+                                    {note.content}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                                    <span className="text-[10px] text-surface-500 font-bold">
+                                      بواسطة: {note.createdBy.username}
+                                    </span>
+                                    <span className="text-[10px] text-surface-500 font-bold">
+                                      {formatDateTime(note.createdAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <IconButton
+                                  icon={<Trash2 size={13} />}
+                                  label="حذف الملاحظة"
+                                  size="xs"
+                                  variant="danger"
+                                  onClick={() => setDeletingNoteId(note._id!)}
+                                  className="opacity-40 group-hover:opacity-100 shrink-0"
+                                />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <EmptyState
+                            icon={<StickyNote size={24} />}
+                            title="لا توجد ملاحظات"
+                            description="أضف ملاحظة جديدة لتتبع المتابعة"
+                            compact
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </Card>
                 ) : (
-                  <EmptyState
-                    icon={<StickyNote size={24} />}
-                    title="لا توجد ملاحظات"
-                    description="أضف ملاحظة جديدة لتتبع المتابعة"
-                    compact
-                  />
+                  <Card padding="none">
+                    <div className="p-6">
+                      <EmptyState
+                        icon={<StickyNote size={26} />}
+                        title="غير مصرح"
+                        description="ليس لديك صلاحية إدارة الملاحظات"
+                        compact
+                      />
+                    </div>
+                  </Card>
                 )}
               </div>
             </div>
-          )}
+          </div>
         </div>
-      </Modal>
+      </div>
 
       {/* Delete Note Confirmation */}
       <ConfirmDialog
@@ -410,6 +528,8 @@ const ViewPersonModal: React.FC<ViewPersonModalProps> = ({
   );
 };
 
+export default PersonDetailsPage;
+
 // ===== Info Item =====
 const InfoItem: React.FC<{
   icon: React.ReactNode;
@@ -418,15 +538,15 @@ const InfoItem: React.FC<{
   dir?: string;
 }> = ({ icon, label, value, dir }) => (
   <div className="flex items-start gap-2.5">
-    <div className="p-1.5 bg-surface-100 rounded-lg shrink-0 mt-0.5 text-surface-500">
+    <div className="p-2 bg-surface-100 rounded-xl shrink-0 mt-0.5 text-surface-600">
       {icon}
     </div>
     <div className="min-w-0">
-      <p className="text-[10px] text-surface-400 font-bold uppercase tracking-wider leading-none">
+      <p className="text-[10px] text-surface-400 font-extrabold uppercase tracking-wider leading-none">
         {label}
       </p>
       <p
-        className="text-[13px] font-semibold text-surface-800 mt-1 truncate"
+        className="text-[13px] font-semibold text-surface-900 mt-1 truncate"
         dir={dir}
       >
         {value}
@@ -443,7 +563,7 @@ const SectionHeader: React.FC<{
 }> = ({ icon, title, count }) => (
   <div className="flex items-center gap-2">
     <span className="shrink-0">{icon}</span>
-    <h3 className="font-bold text-surface-800 text-[14px]">{title}</h3>
+    <h3 className="font-extrabold text-surface-900 text-[14px]">{title}</h3>
     {count !== undefined && count > 0 && (
       <Badge variant="neutral" size="xs">
         {count}
@@ -452,4 +572,14 @@ const SectionHeader: React.FC<{
   </div>
 );
 
-export default ViewPersonModal;
+const SummaryRow: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => (
+  <div className="flex items-center justify-between gap-3 py-2 px-3 rounded-2xl bg-surface-50 border border-surface-100">
+    <span className="text-[12px] text-surface-500 font-bold">{label}</span>
+    <span className="text-[12px] text-surface-900 font-extrabold">{value}</span>
+  </div>
+);
+
+

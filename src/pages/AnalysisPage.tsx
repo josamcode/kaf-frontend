@@ -56,9 +56,12 @@ const AnalysisPage: React.FC = () => {
     loadStats();
   }, [genderFilter]);
 
+  const formatYearLabel = (year: Stats["byYear"][number]["_id"]) =>
+    year === "graduated" ? "\u0645\u062a\u062e\u0631\u062c" : `سنة ${year}`;
+
   const yearChartData =
     stats?.byYear.map((item) => ({
-      year: `سنة ${item._id}`,
+      year: formatYearLabel(item._id),
       count: item.count,
     })) || [];
 
@@ -388,7 +391,7 @@ const AnalysisPage: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-[13px] font-semibold text-surface-800">
-                              سنة {year._id}
+                              {formatYearLabel(year._id)}
                             </span>
                             <div className="flex items-center gap-2 shrink-0">
                               <Badge variant="neutral" size="xs">

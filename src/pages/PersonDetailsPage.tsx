@@ -91,6 +91,9 @@ const PersonDetailsPage: React.FC = () => {
   const getGenderText = (gender: "boy" | "girl") =>
     gender === "boy" ? "Boy" : "Girl";
 
+  const formatYearLabel = (year: Person["year"]) =>
+    year === "graduated" ? "\u0645\u062a\u062e\u0631\u062c" : String(year);
+
   const handleAddNote = async () => {
     if (!person || !newNote.trim()) return;
 
@@ -230,7 +233,7 @@ const PersonDetailsPage: React.FC = () => {
                   {getGenderText(person.gender)}
                 </Badge>
                 <Badge variant="primary" size="xs">
-                  سنة {person.year}
+                  سنة {formatYearLabel(person.year)}
                 </Badge>
               </div>
             </div>
@@ -478,3 +481,5 @@ const SectionHeader: React.FC<{
 );
 
 export default PersonDetailsPage;
+
+

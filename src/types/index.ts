@@ -25,7 +25,7 @@ export interface Person {
   university?: string;
   residence?: string;
   origin: string;
-  year: 1 | 2 | 3 | 4 | 5;
+  year: StudyYear;
   phone: string;
   customFields?: Record<string, string>;
   notes?: Note[];
@@ -75,9 +75,11 @@ export interface Stats {
   total: number;
   boys: number;
   girls: number;
-  byYear: Array<{ _id: number; count: number }>;
+  byYear: Array<{ _id: StudyYear; count: number }>;
   topOrigins: Array<{ _id: string; count: number }>;
 }
+
+export type StudyYear = 1 | 2 | 3 | 4 | 5 | "graduated";
 
 export interface LoginForm {
   username: string;
@@ -92,7 +94,7 @@ export interface PersonForm {
   university?: string;
   residence?: string;
   origin: string;
-  year: 1 | 2 | 3 | 4 | 5;
+  year: StudyYear;
   phone: string;
   customFields?: Record<string, string>;
 }
@@ -116,7 +118,7 @@ export interface AdminForm {
 
 export interface FilterOptions {
   gender?: "boy" | "girl";
-  year?: number;
+  year?: StudyYear;
   origin?: string;
   college?: string;
   university?: string;

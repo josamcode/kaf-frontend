@@ -112,10 +112,14 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
   ) => {
     const { name, value } = e.target;
     if (name === "year") {
-      updateField(
-        name,
-        (Number.parseInt(value, 10) || 1) as PersonForm["year"],
-      );
+      if (value === "graduated") {
+        updateField(name, "graduated");
+      } else {
+        updateField(
+          name,
+          (Number.parseInt(value, 10) || 1) as PersonForm["year"],
+        );
+      }
     } else {
       updateField(name, value);
     }
@@ -202,6 +206,7 @@ const PersonFormModal: React.FC<PersonFormModalProps> = ({
     { value: "3", label: "السنة الثالثة" },
     { value: "4", label: "السنة الرابعة" },
     { value: "5", label: "السنة الخامسة" },
+    { value: "graduated", label: "\u0645\u062a\u062e\u0631\u062c" },
   ];
 
   const customValueSuggestions =

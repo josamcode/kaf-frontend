@@ -138,6 +138,9 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   const getGenderText = (gender: "boy" | "girl") =>
     gender === "boy" ? "ولد" : "بنت";
 
+  const formatYearLabel = (year: Person["year"] | FilterOptions["year"]) =>
+    year === "graduated" ? "\u0645\u062a\u062e\u0631\u062c" : String(year);
+
   const activeFiltersCount = [
     filters.gender,
     filters.year,
@@ -158,6 +161,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     { value: "3", label: "السنة الثالثة" },
     { value: "4", label: "السنة الرابعة" },
     { value: "5", label: "السنة الخامسة" },
+    { value: "graduated", label: "\u0645\u062a\u062e\u0631\u062c" },
   ];
 
   return (
@@ -228,7 +232,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 onChange={(e) =>
                   handleFilterChange(
                     "year",
-                    e.target.value ? parseInt(e.target.value) : undefined,
+                    e.target.value
+                      ? e.target.value === "graduated"
+                        ? "graduated"
+                        : parseInt(e.target.value)
+                      : undefined,
                   )
                 }
                 options={yearOptions}
@@ -348,7 +356,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               {getGenderText(person.gender)}
                             </Badge>
                             <Badge variant="primary" size="xs">
-                              سنة {person.year}
+                              سنة {formatYearLabel(person.year)}
                             </Badge>
                           </div>
                         </div>
@@ -504,7 +512,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
 
                         {/* Year */}
                         <td className="px-4 py-3 text-[13px] text-surface-700 font-semibold">
-                          سنة {person.year}
+                          سنة {formatYearLabel(person.year)}
                         </td>
 
                         {/* College */}
@@ -654,3 +662,5 @@ const InfoRow: React.FC<{
 );
 
 export default DataPage;
+
+
