@@ -12,8 +12,6 @@ import {
   MapPin,
   GraduationCap,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   X,
 } from "lucide-react";
 import { Person, FilterOptions } from "../types";
@@ -52,7 +50,12 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
 
   const [filters, setFilters] = useState<FilterOptions>({
     page: 1,
-    limit: 20,
+    limit: 10,
+  });
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pages: 1,
+    total: 0,
   });
 
   const { hasPermission, canAccessGender } = useAuth();
@@ -67,6 +70,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
           .replace(/ة/g, "ه")
           .replace(/ى/g, "ي")
           .trim();
+
       return normalize(a.name).localeCompare(normalize(b.name), "ar", {
         numeric: true,
         sensitivity: "base",
@@ -78,9 +82,28 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     try {
       setLoading(true);
       setError(null);
+
       const response = await personsAPI.getPersons(filters);
+
       if (response.success && response.persons) {
-        setPersons(sortPersonsAlphabetically(response.persons));
+        const sortedPersons = sortPersonsAlphabetically(response.persons);
+        const currentPage = response.pagination?.current || filters.page || 1;
+        const totalPages = Math.max(response.pagination?.pages || 1, 1);
+        const totalPersons = response.pagination?.total ?? sortedPersons.length;
+
+        setPagination({
+          current: currentPage,
+          pages: totalPages,
+          total: totalPersons,
+        });
+
+        if (currentPage > totalPages) {
+          setPersons([]);
+          setFilters((prev) => ({ ...prev, page: totalPages }));
+          return;
+        }
+
+        setPersons(sortedPersons);
       } else {
         setError(response.message || "فشل في تحميل البيانات");
       }
@@ -96,7 +119,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   }, [loadPersons]);
 
   const handleFilterChange = (key: keyof FilterOptions, value: any) => {
-    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
+    setFilters((prev) =>
+      key === "page"
+        ? { ...prev, [key]: value }
+        : { ...prev, [key]: value, page: 1 },
+    );
   };
 
   const handleSearch = (value: string) => {
@@ -127,7 +154,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     navigate(`/persons/${personId}`);
 
   const handleWhatsApp = (phone: string) => {
-    const clean = phone.replace(/[\\s\-()]/g, "");
+    const clean = phone.replace(/[\s\-()]/g, "");
     window.open(`https://wa.me/+2${clean}`, "_blank");
   };
 
@@ -140,7 +167,39 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     gender === "boy" ? "ولد" : "بنت";
 
   const formatYearLabel = (year: Person["year"] | FilterOptions["year"]) =>
-    year === "graduated" ? "\u062e\u0631\u064a\u062c" : String(year);
+    year === "graduated" ? "خريج" : String(year);
+
+  const buildPaginationItems = (currentPage: number, totalPages: number) => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, "ellipsis-end", totalPages] as const;
+    }
+
+    if (currentPage >= totalPages - 3) {
+      return [
+        1,
+        "ellipsis-start",
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ] as const;
+    }
+
+    return [
+      1,
+      "ellipsis-start",
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      "ellipsis-end",
+      totalPages,
+    ] as const;
+  };
 
   const activeFiltersCount = [
     filters.gender,
@@ -162,7 +221,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     { value: "3", label: "السنة الثالثة" },
     { value: "4", label: "السنة الرابعة" },
     { value: "5", label: "السنة الخامسة" },
-    { value: "graduated", label: "\u062e\u0631\u064a\u062c" },
+    { value: "graduated", label: "خريج" },
   ];
 
   return (
@@ -178,6 +237,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
               إدارة ومتابعة بيانات المخدومين
             </p>
           </div>
+
           {hasPermission("create_data") && (
             <Button
               onClick={onAddPerson}
@@ -192,26 +252,30 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
         </div>
 
         {/* ===== Search & Filter Bar ===== */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           <SearchInput
             value={searchTerm}
             onChange={handleSearch}
             placeholder="بحث بالاسم، الكلية، أو البلد..."
             className="flex-1"
           />
-          <IconButton
-            icon={<SlidersHorizontal size={18} />}
-            label="الفلاتر"
-            variant={showFilters ? "primary" : "outline"}
-            size="md"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`relative ${showFilters ? "" : ""}`}
-          />
-          {activeFiltersCount > 0 && (
-            <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none">
-              {activeFiltersCount}
-            </span>
-          )}
+
+          <div className="relative">
+            <IconButton
+              icon={<SlidersHorizontal size={18} />}
+              label="الفلاتر"
+              variant={showFilters ? "primary" : "outline"}
+              size="md"
+              onClick={() => setShowFilters(!showFilters)}
+              className="relative"
+            />
+
+            {activeFiltersCount > 0 && (
+              <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none">
+                {activeFiltersCount}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* ===== Filters Panel ===== */}
@@ -227,6 +291,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 options={genderOptions}
                 size="sm"
               />
+
               <Select
                 label="السنة"
                 value={filters.year?.toString() || ""}
@@ -243,6 +308,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 options={yearOptions}
                 size="sm"
               />
+
               <Input
                 label="البلد"
                 placeholder="بحث..."
@@ -252,6 +318,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 }
                 size="sm"
               />
+
               <Input
                 label="الكلية"
                 placeholder="بحث..."
@@ -262,10 +329,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 size="sm"
               />
             </div>
+
             {activeFiltersCount > 0 && (
               <button
                 onClick={() => {
-                  setFilters({ page: 1, limit: 20 });
+                  setFilters({ page: 1, limit: 10 });
                   setSearchTerm("");
                 }}
                 className="mt-3 text-xs font-bold text-danger-600 hover:text-danger-700 flex items-center gap-1 transition-colors"
@@ -299,7 +367,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
           <EmptyState
             icon={<Users size={28} />}
             title="لا توجد بيانات متاحة"
-            description="جرب تغيير الفلاتر أو أضف شخص جديد"
+            description="جرّب تغيير الفلاتر أو أضف شخص جديد"
             action={
               hasPermission("create_data") ? (
                 <Button
@@ -356,6 +424,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                             >
                               {getGenderText(person.gender)}
                             </Badge>
+
                             <Badge variant="primary" size="xs">
                               {person.year === "graduated"
                                 ? formatYearLabel(person.year)
@@ -373,6 +442,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                           size="sm"
                           onClick={() => handleViewPerson(person._id)}
                         />
+
                         {hasPermission("edit_data") &&
                           canAccessGender(person.gender) && (
                             <IconButton
@@ -384,6 +454,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               className="!text-primary-600"
                             />
                           )}
+
                         {hasPermission("delete_data") &&
                           canAccessGender(person.gender) && (
                             <IconButton
@@ -402,9 +473,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                       <InfoRow icon={<GraduationCap size={13} />}>
                         {person.college || "غير محدد"}
                       </InfoRow>
+
                       <InfoRow icon={<MapPin size={13} />}>
                         {person.origin}
                       </InfoRow>
+
                       <InfoRow icon={<Phone size={13} />}>
                         <span dir="ltr">{person.phone}</span>
                       </InfoRow>
@@ -424,6 +497,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                         <Phone size={14} />
                         <span>اتصال</span>
                       </button>
+
                       <button
                         onClick={() => handleWhatsApp(person.phone)}
                         className="
@@ -466,6 +540,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                       ))}
                     </tr>
                   </thead>
+
                   <tbody className="divide-y divide-surface-100">
                     {persons.map((person) => (
                       <tr
@@ -563,6 +638,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               size="xs"
                               onClick={() => handleViewPerson(person._id)}
                             />
+
                             <IconButton
                               icon={<Phone size={15} />}
                               label="اتصال"
@@ -570,6 +646,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               onClick={() => handleCall(person.phone)}
                               className="!text-emerald-600 hover:!bg-emerald-50"
                             />
+
                             <IconButton
                               icon={<MessageCircle size={15} />}
                               label="واتساب"
@@ -577,6 +654,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                               onClick={() => handleWhatsApp(person.phone)}
                               className="!text-green-600 hover:!bg-green-50"
                             />
+
                             {hasPermission("edit_data") &&
                               canAccessGender(person.gender) && (
                                 <IconButton
@@ -587,6 +665,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                                   className="!text-primary-600 hover:!bg-primary-50"
                                 />
                               )}
+
                             {hasPermission("delete_data") &&
                               canAccessGender(person.gender) && (
                                 <IconButton
@@ -610,32 +689,34 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
       </div>
 
       {/* ===== Pagination ===== */}
-      {persons.length > 0 && (
-        <div className="flex items-center justify-center gap-2 mt-4 lg:mt-5 pb-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<ChevronRight size={15} />}
-            onClick={() =>
-              handleFilterChange("page", Math.max(1, (filters.page || 1) - 1))
-            }
-            disabled={!filters.page || filters.page <= 1}
-          >
-            السابق
-          </Button>
+      {pagination.total > 0 && (
+        <div className="flex items-center justify-center gap-2 mt-4 lg:mt-5 pb-2 flex-wrap">
           <span className="px-4 py-2 bg-surface-100 rounded-xl text-xs font-bold text-surface-700 min-w-[5rem] text-center">
-            صفحة {filters.page || 1}
+            {pagination.current} / {pagination.pages}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<ChevronLeft size={15} />}
-            iconPosition="end"
-            onClick={() => handleFilterChange("page", (filters.page || 1) + 1)}
-            disabled={persons.length < (filters.limit || 20)}
-          >
-            التالي
-          </Button>
+
+          {buildPaginationItems(pagination.current, pagination.pages).map(
+            (item, index) =>
+              typeof item === "number" ? (
+                <Button
+                  key={item}
+                  variant={item === pagination.current ? "primary" : "ghost"}
+                  size="xs"
+                  onClick={() => handleFilterChange("page", item)}
+                  className="min-w-8 px-2"
+                  aria-label={`Page ${item}`}
+                >
+                  {item}
+                </Button>
+              ) : (
+                <span
+                  key={`${item}-${index}`}
+                  className="px-1 text-surface-400 font-bold text-sm"
+                >
+                  ...
+                </span>
+              ),
+          )}
         </div>
       )}
 
