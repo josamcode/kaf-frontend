@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { LogIn, Eye, EyeOff, AlertCircle, Church, Cross } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { Input, Button } from "../components/ui";
+import { Button, Input } from "../components/ui";
 
 const LoginPage: React.FC = () => {
   const [formData, setFormData] = useState({

@@ -71,12 +71,45 @@ export interface ApiResponse<T = any> {
   };
 }
 
+export interface StatsCountById {
+  _id: string;
+  count: number;
+}
+
+export interface TopCustomFieldStat extends StatsCountById {
+  uniqueValuesCount: number;
+}
+
+export interface CustomFieldValueStat {
+  value: string;
+  count: number;
+}
+
+export interface CustomFieldDetailStat {
+  _id: string;
+  totalCount: number;
+  uniqueValuesCount: number;
+  topValues: CustomFieldValueStat[];
+}
+
 export interface Stats {
   total: number;
   boys: number;
   girls: number;
   byYear: Array<{ _id: StudyYear; count: number }>;
-  topOrigins: Array<{ _id: string; count: number }>;
+  topOrigins: StatsCountById[];
+  topColleges?: StatsCountById[];
+  topUniversities?: StatsCountById[];
+  topServants?: StatsCountById[];
+  topNoteAuthors?: StatsCountById[];
+  notesTotal?: number;
+  personsWithNotes?: number;
+  personsWithCustomFields?: number;
+  customFieldsTotalEntries?: number;
+  customFieldKeysCount?: number;
+  uniqueServantsContributed?: number;
+  topCustomFields?: TopCustomFieldStat[];
+  customFieldDetails?: CustomFieldDetailStat[];
 }
 
 export type StudyYear = 1 | 2 | 3 | 4 | 5 | "graduated";
