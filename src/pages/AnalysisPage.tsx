@@ -413,8 +413,8 @@ const AnalysisPage: React.FC = () => {
     if (!stats) return null;
 
     const unique = stats.uniqueServantsContributed || 0;
-    const topServants = (stats.topServants || []).slice(0, 5);
-    const topNoteAuthors = (stats.topNoteAuthors || []).slice(0, 5);
+    const topServants = (stats.topServants || []).slice(0, 10);
+    const topNoteAuthors = (stats.topNoteAuthors || []).slice(0, 10);
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
@@ -729,11 +729,11 @@ const AnalysisPage: React.FC = () => {
           {/* ===== Lists Row ===== */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
             <TopSimpleList
-              title="أكثر البلدان الأصلية"
-              subtitle="أعلى 5 بلدان"
+              title="تعداد البلدان الأصلية"
+              subtitle="تعداد إشخاص البلدان"
               icon={<MapPin size={15} />}
               items={stats.topOrigins || []}
-              topN={5}
+              topN={20}
               accent="primary"
               onItemClick={(origin) => navigateToDataWithFilter({ origin })}
             />
@@ -807,11 +807,11 @@ const AnalysisPage: React.FC = () => {
           {/* ===== More Analytics ===== */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
             <TopSimpleList
-              title="أكثر الكليات"
-              subtitle="أعلى 5 كليات"
+              title="توزيع الكليات"
+              subtitle="أعلى الكليات"
               icon={<GraduationCap size={15} />}
               items={(stats.topColleges as any) || []}
-              topN={5}
+              topN={20}
               accent="amber"
               onItemClick={(college) => navigateToDataWithFilter({ college })}
             />

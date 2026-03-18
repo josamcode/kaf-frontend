@@ -155,6 +155,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     total: 0,
   });
   const [filterOptions, setFilterOptions] = useState(EMPTY_FILTER_OPTIONS);
+  const latestPersonsRequestRef = useRef(0);
 
   const { hasPermission, canAccessGender } = useAuth();
 
@@ -238,16 +239,22 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   }, []);
 
   const loadPersons = useCallback(async () => {
+    const requestId = ++latestPersonsRequestRef.current;
+
     try {
       setLoading(true);
       setError(null);
 
       const response = await personsAPI.getPersons(requestFilters);
 
+      if (requestId !== latestPersonsRequestRef.current) {
+        return;
+      }
+
       if (response.success && response.persons) {
         const sortedPersons = sortPersonsAlphabetically(response.persons);
         const currentPage =
-          response.pagination?.current || filters.page || DEFAULT_PAGE;
+          response.pagination?.current || requestFilters.page || DEFAULT_PAGE;
         const totalPages = Math.max(response.pagination?.pages || 1, 1);
         const totalPersons = response.pagination?.total ?? sortedPersons.length;
 
@@ -268,11 +275,16 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
         setError(response.message || "فشل في تحميل البيانات");
       }
     } catch (err: any) {
+      if (requestId !== latestPersonsRequestRef.current) {
+        return;
+      }
       setError(err.response?.data?.message || "حدث خطأ في الخادم");
     } finally {
-      setLoading(false);
+      if (requestId === latestPersonsRequestRef.current) {
+        setLoading(false);
+      }
     }
-  }, [filters.page, hasQueryFilters, requestFilters]);
+  }, [hasQueryFilters, requestFilters]);
 
   useEffect(() => {
     loadPersons();
