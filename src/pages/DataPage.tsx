@@ -136,12 +136,13 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
     () => parseFiltersFromParams(searchParams),
     [searchParams],
   );
+  const searchParamValue = searchParams.get("search")?.trim() || "";
 
   const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(initialFilters.search || "");
+  const [searchTerm, setSearchTerm] = useState(searchParamValue);
 
   // Delete confirmation
   const [deletingPerson, setDeletingPerson] = useState<Person | null>(null);
@@ -197,8 +198,11 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   useEffect(() => {
     const parsed = parseFiltersFromParams(searchParams);
     setFilters((prev) => (areFiltersEqual(prev, parsed) ? prev : parsed));
-    setSearchTerm(parsed.search || "");
   }, [searchParams]);
+
+  useEffect(() => {
+    setSearchTerm(searchParamValue);
+  }, [searchParamValue]);
 
   useEffect(() => {
     const nextParams = buildParamsFromFilters(filters);
@@ -283,8 +287,9 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   };
 
   const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    handleFilterChange("search", value || undefined);
+    const normalizedValue = value.trim();
+    setSearchTerm(normalizedValue ? value : "");
+    handleFilterChange("search", normalizedValue || undefined);
   };
 
   const handleDeleteConfirm = async () => {
@@ -358,6 +363,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   };
 
   const activeFiltersCount = [
+    filters.search,
     filters.gender,
     filters.year,
     filters.origin,
@@ -418,7 +424,8 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
   );
 
   const universityOptions = useMemo(
-    () => buildFilterSelectOptions(filterOptions.university, filters.university),
+    () =>
+      buildFilterSelectOptions(filterOptions.university, filters.university),
     [buildFilterSelectOptions, filterOptions.university, filters.university],
   );
 
@@ -468,7 +475,7 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
               className="relative"
             />
 
-            {activeFiltersCount > 0 && (
+            {hasQueryFilters && (
               <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center pointer-events-none">
                 {activeFiltersCount}
               </span>
@@ -521,19 +528,18 @@ const DataPage: React.FC<DataPageProps> = ({ onAddPerson, onEditPerson }) => {
                 placeholder="Ø§Ø®ØªØ±"
               />
               <SmartSelect
-                label="ÇáÌÇãÚÉ"
+                label="Ø§Ù„Ø¬Ø§Ù…Ø¹Ø©"
                 value={filters.university || ""}
                 options={universityOptions}
                 onChange={(value) => handleFilterChange("university", value)}
-                placeholder="ÇÎÊÑ"
+                placeholder="Ø§Ù„Ø¬Ø§Ù…Ø¹Ø©"
               />
             </div>
 
-            {activeFiltersCount > 0 && (
+            {hasQueryFilters && (
               <button
                 onClick={() => {
                   setFilters({ page: DEFAULT_PAGE, limit: DEFAULT_LIMIT });
-                  setSearchTerm("");
                 }}
                 className="mt-3 text-xs font-bold text-danger-600 hover:text-danger-700 flex items-center gap-1 transition-colors"
               >

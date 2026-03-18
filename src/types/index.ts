@@ -47,6 +47,39 @@ export interface Note {
   createdAt: string;
 }
 
+export interface NotePersonSummary {
+  _id: string;
+  name: string;
+  gender: "boy" | "girl";
+  year: StudyYear;
+  origin: string;
+  phone: string;
+  college?: string;
+  university?: string;
+  residence?: string;
+}
+
+export interface PersonNote {
+  _id: string;
+  content: string;
+  createdBy: {
+    _id: string;
+    username: string;
+  };
+  createdAt: string;
+  person: NotePersonSummary;
+}
+
+export interface NoteAuthorOption {
+  value: string;
+  label: string;
+}
+
+export interface NoteFilterOptions {
+  origins: string[];
+  authors: NoteAuthorOption[];
+}
+
 export interface AuthResponse {
   success: boolean;
   message: string;
@@ -61,9 +94,11 @@ export interface ApiResponse<T = any> {
   user?: User;
   person?: Person;
   persons?: Person[];
+  notes?: PersonNote[];
   admins?: User[];
   stats?: Stats;
   formOptions?: PersonFormOptions;
+  filterOptions?: NoteFilterOptions;
   pagination?: {
     current: number;
     pages: number;
@@ -159,4 +194,14 @@ export interface FilterOptions {
   page?: number;
   limit?: number;
   noLimit?: boolean;
+}
+
+export interface NoteQueryFilters {
+  search?: string;
+  gender?: "boy" | "girl";
+  year?: StudyYear;
+  origin?: string;
+  authorId?: string;
+  page?: number;
+  limit?: number;
 }

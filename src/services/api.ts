@@ -10,6 +10,9 @@ import {
   PersonFormOptions,
   AdminForm,
   FilterOptions,
+  NoteQueryFilters,
+  PersonNote,
+  NoteFilterOptions,
 } from "../types";
 
 const API_BASE_URL =
@@ -141,6 +144,36 @@ export const personsAPI = {
 
     const response = await api.get(
       `/persons/stats/overview?${params.toString()}`
+    );
+    return response.data;
+  },
+
+  getNotes: async (
+    filters: NoteQueryFilters = {}
+  ): Promise<ApiResponse<PersonNote[]>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/persons/notes?${params.toString()}`);
+    return response.data;
+  },
+
+  getNoteFilterOptions: async (
+    filters: Pick<NoteQueryFilters, "gender" | "year" | "origin"> = {}
+  ): Promise<ApiResponse<NoteFilterOptions>> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(
+      `/persons/notes/filter-options?${params.toString()}`
     );
     return response.data;
   },

@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import AppLayout from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import DataPage from "./pages/DataPage";
+import NotesPage from "./pages/NotesPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import AdminManagementPage from "./pages/AdminManagementPage";
 import PersonDetailsPage from "./pages/PersonDetailsPage";
@@ -19,12 +20,14 @@ import { Spinner, ToastContainer, useToast } from "./components/ui";
 
 const ROUTE_TO_PAGE: Record<string, string> = {
   "/data": "data",
+  "/notes": "notes",
   "/analysis": "analysis",
   "/admins": "admins",
 };
 
 const PAGE_TO_ROUTE: Record<string, string> = {
   data: "/data",
+  notes: "/notes",
   analysis: "/analysis",
   admins: "/admins",
 };
@@ -90,6 +93,16 @@ const ProtectedLayout: React.FC = () => {
                 onAddPerson={handleAddPerson}
                 onEditPerson={handleEditPerson}
               />
+            }
+          />
+          <Route
+            path="/notes"
+            element={
+              hasPermission("manage_notes") ? (
+                <NotesPage />
+              ) : (
+                <Navigate to="/data" replace />
+              )
             }
           />
           <Route path="/analysis" element={<AnalysisPage key={refreshKey} />} />

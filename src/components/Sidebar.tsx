@@ -1,5 +1,5 @@
 import React from "react";
-import { Database, BarChart3, Users } from "lucide-react";
+import { Database, BarChart3, StickyNote, Users } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 interface BottomNavProps {
@@ -12,6 +12,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
 
   const tabs = [
     { id: "data", label: "البيانات", icon: Database, permission: null },
+    {
+      id: "notes",
+      label: "الملاحظات",
+      icon: StickyNote,
+      permission: "manage_notes" as const,
+    },
     { id: "analysis", label: "التحليلات", icon: BarChart3, permission: null },
     {
       id: "admins",
